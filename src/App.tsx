@@ -6,6 +6,7 @@ import Onboarding from '@/pages/Onboarding'
 import Home from '@/pages/Home'
 import CreateMatch from '@/pages/CreateMatch'
 import MatchDetail from '@/pages/MatchDetail'
+import AdminSettings from '@/pages/AdminSettings'
 
 /**
  * Auth + navigation state machine:
@@ -14,11 +15,23 @@ import MatchDetail from '@/pages/MatchDetail'
  *     └─ no session           → login
  *     └─ session, no profile  → onboarding
  *     └─ session + profile    → home
- *                                ├─ admin FAB    → create-match → home
- *                                └─ card tap     → match-detail → home
+ *                                ├─ admin FAB      → create-match → home
+ *                                ├─ card tap       → match-detail → home
+ *                                └─ admin gear ⚙   → admin-settings → home
  */
 
-type AppState = 'loading' | 'login' | 'onboarding' | 'home' | 'create-match' | 'match-detail'
+type AppState =
+  | 'loading'
+  | 'login'
+  | 'onboarding'
+  | 'home'
+  | 'create-match'
+  | 'match-detail'
+  | 'admin-settings'
+
+interface UserMeta {
+  isAdmin: boolean
+}
 
 async function resolveAppState(session: Session | null): Promise<'login' | 'onboarding' | 'home'> {
   if (!session) return 'login'
@@ -34,11 +47,23 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [appState, setAppState] = useState<AppState>('loading')
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
+  const [userMeta, setUserMeta] = useState<UserMeta>({ isAdmin: false })
 
   async function bootstrap(session: Session | null) {
-    const state = await resolveAppState(session)
+    if (!session) {
+      setSession(null)
+      setAppState('login')
+      return
+    }
+    const { data } = await supabase
+      .from('users')
+      .select('displayName, isAdmin')
+      .eq('id', session.user.id)
+      .maybeSingle()
+
     setSession(session)
-    setAppState(state)
+    setUserMeta({ isAdmin: data?.isAdmin ?? false })
+    setAppState(data?.displayName ? 'home' : 'onboarding')
   }
 
   useEffect(() => {
@@ -72,6 +97,7 @@ export default function App() {
             onSignOut={() => setAppState('login')}
             onCreateMatch={() => setAppState('create-match')}
             onSelectMatch={(id) => { setSelectedMatchId(id); setAppState('match-detail') }}
+            onSettings={() => setAppState('admin-settings')}
           />
         )}
 
@@ -86,6 +112,14 @@ export default function App() {
         {appState === 'match-detail' && session && selectedMatchId && (
           <MatchDetail
             matchId={selectedMatchId}
+            session={session}
+            isAdmin={userMeta.isAdmin}
+            onBack={() => setAppState('home')}
+          />
+        )}
+
+        {appState === 'admin-settings' && session && (
+          <AdminSettings
             session={session}
             onBack={() => setAppState('home')}
           />

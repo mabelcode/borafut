@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Calendar, Users, CircleDollarSign, Plus, LogOut, ChevronRight, Loader2, Clock, ShieldCheck, AlertCircle } from 'lucide-react'
+import { Calendar, Users, CircleDollarSign, Plus, LogOut, ChevronRight, Loader2, Clock, ShieldCheck, AlertCircle, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useMatches, type Match } from '@/hooks/useMatches'
@@ -136,9 +136,10 @@ interface Props {
     onSignOut: () => void
     onCreateMatch: () => void
     onSelectMatch: (matchId: string) => void
+    onSettings: () => void
 }
 
-export default function Home({ onSignOut, onCreateMatch, onSelectMatch }: Props) {
+export default function Home({ onSignOut, onCreateMatch, onSelectMatch, onSettings }: Props) {
     const { user } = useCurrentUser()
     const { matches, loading, error } = useMatches()
     const { data: myRegistrations } = useMyRegistrations()
@@ -180,9 +181,18 @@ export default function Home({ onSignOut, onCreateMatch, onSelectMatch }: Props)
                 <div className="flex items-center justify-between">
                     <h2 className="text-base font-semibold text-primary-text">Partidas</h2>
                     {user?.isAdmin && (
-                        <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-green/10 text-brand-green px-2 py-0.5 rounded-full">
-                            Admin
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-green/10 text-brand-green px-2 py-0.5 rounded-full">
+                                Admin
+                            </span>
+                            <button
+                                onClick={onSettings}
+                                className="size-7 flex items-center justify-center rounded-lg text-secondary-text hover:text-primary-text hover:bg-gray-100 transition-colors duration-150"
+                                aria-label="Configurações"
+                            >
+                                <Settings size={15} />
+                            </button>
+                        </div>
                     )}
                 </div>
 

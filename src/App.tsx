@@ -4,17 +4,19 @@ import type { Session } from '@supabase/supabase-js'
 import Login from '@/pages/Login'
 import Onboarding from '@/pages/Onboarding'
 import Home from '@/pages/Home'
+import CreateMatch from '@/pages/CreateMatch'
 
 /**
- * Auth state machine:
+ * Auth + navigation state machine:
  *
  *   loading
- *     └─ no session            → <Login />
- *     └─ session, no profile   → <Onboarding />
- *     └─ session + profile     → <Home />  (TODO)
+ *     └─ no session           → login
+ *     └─ session, no profile  → onboarding
+ *     └─ session + profile    → home
+ *                                └─ admin FAB → create-match → home
  */
 
-type AppState = 'loading' | 'login' | 'onboarding' | 'home'
+type AppState = 'loading' | 'login' | 'onboarding' | 'home' | 'create-match'
 
 async function resolveAppState(session: Session | null): Promise<AppState> {
   if (!session) return 'login'
@@ -39,10 +41,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    // Initial session (also processes the OAuth callback token in the URL)
     supabase.auth.getSession().then(({ data }) => bootstrap(data.session))
 
-    // Keep in sync for the app's lifetime
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       bootstrap(session)
     })
@@ -72,7 +72,18 @@ export default function App() {
         )}
 
         {appState === 'home' && (
-          <Home onSignOut={() => setAppState('login')} />
+          <Home
+            onSignOut={() => setAppState('login')}
+            onCreateMatch={() => setAppState('create-match')}
+          />
+        )}
+
+        {appState === 'create-match' && session && (
+          <CreateMatch
+            session={session}
+            onBack={() => setAppState('home')}
+            onCreated={() => setAppState('home')}
+          />
         )}
 
       </div>

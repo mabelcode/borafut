@@ -105,9 +105,10 @@ function EmptyState() {
 
 interface Props {
     onSignOut: () => void
+    onCreateMatch: () => void
 }
 
-export default function Home({ onSignOut }: Props) {
+export default function Home({ onSignOut, onCreateMatch }: Props) {
     const { user } = useCurrentUser()
     const { matches, loading, error } = useMatches()
     const [signingOut, setSigningOut] = useState(false)
@@ -121,64 +122,73 @@ export default function Home({ onSignOut }: Props) {
     const firstName = user?.displayName?.split(' ')[0] ?? 'jogador'
 
     return (
-        <div className="flex flex-col gap-6 animate-fade-in">
-            {/* Header */}
-            <header className="flex items-center justify-between pt-2">
-                <div>
-                    <h1 className="text-2xl font-extrabold tracking-tight text-primary-text">
-                        bora<span className="text-brand-green">fut</span>
-                    </h1>
-                    <p className="text-sm text-secondary-text">
-                        Olá, <span className="font-medium text-primary-text">{firstName}</span> 👋
-                    </p>
+        <>
+            <div className="flex flex-col gap-6 animate-fade-in">
+                {/* Header */}
+                <header className="flex items-center justify-between pt-2">
+                    <div>
+                        <h1 className="text-2xl font-extrabold tracking-tight text-primary-text">
+                            bora<span className="text-brand-green">fut</span>
+                        </h1>
+                        <p className="text-sm text-secondary-text">
+                            Olá, <span className="font-medium text-primary-text">{firstName}</span> 👋
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={handleSignOut}
+                        disabled={signingOut}
+                        className="flex items-center gap-1.5 text-xs text-secondary-text hover:text-brand-red transition-colors duration-150 py-2 px-3 rounded-xl hover:bg-brand-red/5"
+                    >
+                        {signingOut ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+                        Sair
+                    </button>
+                </header>
+
+                {/* Section title */}
+                <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-primary-text">Partidas</h2>
+                    {user?.isAdmin && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-green/10 text-brand-green px-2 py-0.5 rounded-full">
+                            Admin
+                        </span>
+                    )}
                 </div>
 
-                <button
-                    onClick={handleSignOut}
-                    disabled={signingOut}
-                    className="flex items-center gap-1.5 text-xs text-secondary-text hover:text-brand-red transition-colors duration-150 py-2 px-3 rounded-xl hover:bg-brand-red/5"
-                >
-                    {signingOut ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-                    Sair
-                </button>
-            </header>
-
-            {/* Section title */}
-            <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-primary-text">Partidas</h2>
-                {user?.isAdmin && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-green/10 text-brand-green px-2 py-0.5 rounded-full">
-                        Admin
-                    </span>
+                {/* Match list */}
+                {loading ? (
+                    <div className="flex justify-center py-12">
+                        <Loader2 size={24} className="animate-spin text-secondary-text" />
+                    </div>
+                ) : error ? (
+                    <p className="text-sm text-brand-red text-center py-8">{error}</p>
+                ) : matches.length === 0 ? (
+                    <EmptyState />
+                ) : (
+                    <div className="flex flex-col gap-3">
+                        {matches.map((match) => (
+                            <MatchCard key={match.id} match={match} />
+                        ))}
+                    </div>
                 )}
             </div>
 
-            {/* Match list */}
-            {loading ? (
-                <div className="flex justify-center py-12">
-                    <Loader2 size={24} className="animate-spin text-secondary-text" />
-                </div>
-            ) : error ? (
-                <p className="text-sm text-brand-red text-center py-8">{error}</p>
-            ) : matches.length === 0 ? (
-                <EmptyState />
-            ) : (
-                <div className="flex flex-col gap-3">
-                    {matches.map((match) => (
-                        <MatchCard key={match.id} match={match} />
-                    ))}
-                </div>
-            )}
-
-            {/* Admin FAB */}
+            {/* Admin FAB — outside animated div so fixed works relative to viewport */}
             {user?.isAdmin && (
-                <button
-                    className="fixed bottom-6 right-6 size-14 rounded-full bg-brand-green text-white shadow-lg shadow-brand-green/30 flex items-center justify-center hover:brightness-105 active:scale-95 transition-all duration-150"
-                    aria-label="Criar partida"
-                >
-                    <Plus size={24} />
-                </button>
+                <div className="group fixed bottom-6 right-6 flex flex-col items-end gap-2 z-50">
+                    {/* Tooltip */}
+                    <span className="opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 pointer-events-none bg-primary-text text-white text-xs font-medium px-2.5 py-1 rounded-lg shadow-md whitespace-nowrap">
+                        Nova Partida
+                    </span>
+                    <button
+                        onClick={onCreateMatch}
+                        className="size-14 rounded-full bg-brand-green text-white shadow-lg shadow-brand-green/30 flex items-center justify-center hover:brightness-105 active:scale-95 transition-all duration-150"
+                        aria-label="Criar partida"
+                    >
+                        <Plus size={24} />
+                    </button>
+                </div>
             )}
-        </div>
+        </>
     )
 }

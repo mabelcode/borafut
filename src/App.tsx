@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 import Login from '@/pages/Login'
 import Onboarding from '@/pages/Onboarding'
+import Home from '@/pages/Home'
 
 /**
  * Auth state machine:
@@ -71,19 +72,7 @@ export default function App() {
         )}
 
         {appState === 'home' && (
-          // TODO: replace with <Home /> dashboard
-          <div className="flex flex-col gap-4 animate-fade-in">
-            <h1 className="text-4xl font-extrabold tracking-tight text-primary-text">
-              bora<span className="text-brand-green">fut</span>
-            </h1>
-            <p className="text-secondary-text text-sm">Dashboard em construção 🚧</p>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="text-xs text-brand-red underline underline-offset-2 text-left"
-            >
-              Sair
-            </button>
-          </div>
+          <Home onSignOut={() => setAppState('login')} />
         )}
 
       </div>

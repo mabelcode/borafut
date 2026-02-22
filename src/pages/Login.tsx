@@ -1,136 +1,51 @@
-import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, ArrowRight, ChevronLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
-/* ── helpers ─────────────────────────────────────────────────────────── */
-
-/** Strips all non-digit chars and returns only the raw digits. */
-function toDigitsOnly(value: string): string {
-    return value.replace(/\D/g, '')
-}
-
-/**
- * Formats a raw digit string as a Brazilian cell number.
- * Examples:
- *   "11"         → "(11"
- *   "11987"      → "(11) 98765"
- *   "11987654321"→ "(11) 98765-4321"
- */
-function formatBR(digits: string): string {
-    const d = digits.slice(0, 11) // max: DDD(2) + 9 digits
-    if (d.length === 0) return ''
-    if (d.length <= 2) return `(${d}`
-    if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
-}
-
-/** Returns true when the number is a valid BR cell (11 digits: DDD + 9). */
-function isValidBRCell(digits: string): boolean {
-    return digits.length === 11 && digits[2] === '9'
-}
-
-/* ── sub-components ───────────────────────────────────────────────────── */
-
-function SentScreen({ phone, onBack }: { phone: string; onBack: () => void }) {
+/* Google G logo as inline SVG — no external asset needed */
+function GoogleIcon() {
     return (
-        <div className="flex flex-col items-center text-center gap-6 animate-fade-in">
-            {/* Icon */}
-            <div className="mt-2 size-20 rounded-full bg-brand-green/10 flex items-center justify-center">
-                <CheckCircle2 size={40} className="text-brand-green" strokeWidth={1.8} />
-            </div>
-
-            {/* Copy */}
-            <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-bold text-primary-text tracking-tight">
-                    Verifique seu WhatsApp
-                </h2>
-                <p className="text-secondary-text text-sm leading-relaxed max-w-xs">
-                    Enviamos um link de acesso para&nbsp;
-                    <span className="font-semibold text-primary-text">{phone}</span>.
-                    <br />
-                    Toque no link para entrar no app.
-                </p>
-            </div>
-
-            {/* Hint */}
-            <div className="w-full bg-surface rounded-2xl p-4 border border-gray-100 shadow-sm flex items-start gap-3 text-left">
-                <MessageCircle size={20} className="text-brand-green mt-0.5 shrink-0" />
-                <p className="text-xs text-secondary-text leading-relaxed">
-                    O link expira em <span className="font-medium text-primary-text">15 minutos</span>.
-                    Se não receber a mensagem, aguarde alguns segundos e tente novamente.
-                </p>
-            </div>
-
-            {/* Back */}
-            <button
-                onClick={onBack}
-                className="flex items-center gap-1.5 text-sm text-secondary-text hover:text-primary-text transition-colors duration-150"
-            >
-                <ChevronLeft size={16} />
-                Usar outro número
-            </button>
-        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                fill="#4285F4"
+            />
+            <path
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                fill="#34A853"
+            />
+            <path
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                fill="#FBBC05"
+            />
+            <path
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                fill="#EA4335"
+            />
+        </svg>
     )
 }
 
-/* ── main page ────────────────────────────────────────────────────────── */
-
-type Step = 'input' | 'sent'
-
 export default function Login() {
-    const [step, setStep] = useState<Step>('input')
-    const [rawDigits, setRawDigits] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    const inputRef = useRef<HTMLInputElement>(null)
-
-    useEffect(() => {
-        // Auto-focus input on mount
-        inputRef.current?.focus()
-    }, [])
-
-    const displayValue = formatBR(rawDigits)
-    const valid = isValidBRCell(rawDigits)
-
-    function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const digits = toDigitsOnly(e.target.value)
-        setRawDigits(digits.slice(0, 11))
-        setError('')
-    }
-
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault()
-        if (!valid) {
-            setError('Digite um número de celular válido com DDD.')
-            return
-        }
-
+    async function handleGoogleLogin() {
         setLoading(true)
         setError('')
 
-        try {
-            // TODO: integrate Supabase Auth + WhatsApp Magic Link
-            // Simulates network latency for the skeleton
-            await new Promise((r) => setTimeout(r, 900))
-            setStep('sent')
-        } catch {
-            setError('Ocorreu um erro. Tente novamente.')
-        } finally {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`,
+            },
+        })
+
+        if (error) {
+            setError('Não foi possível iniciar o login. Tente novamente.')
             setLoading(false)
         }
-    }
-
-    if (step === 'sent') {
-        return (
-            <SentScreen
-                phone={`+55 ${formatBR(rawDigits)}`}
-                onBack={() => {
-                    setStep('input')
-                    setRawDigits('')
-                    setError('')
-                }}
-            />
-        )
+        // On success, Supabase redirects the browser to Google — no extra handling needed here.
     }
 
     return (
@@ -147,81 +62,46 @@ export default function Login() {
             <div className="bg-surface rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-6">
                 {/* Heading */}
                 <div className="flex flex-col gap-1.5">
-                    <div className="size-10 rounded-2xl bg-brand-green/10 flex items-center justify-center">
-                        <MessageCircle size={20} className="text-brand-green" />
-                    </div>
-                    <h2 className="text-xl font-bold text-primary-text mt-1">Entrar via WhatsApp</h2>
                     <p className="text-sm text-secondary-text leading-relaxed">
-                        Digite seu número e enviaremos um link de acesso no seu WhatsApp. Sem senha.
+                        Entre com sua conta Google para gerenciar partidas, confirmar presença e muito mais.
                     </p>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-1.5">
-                        <label htmlFor="phone" className="text-xs font-semibold text-secondary-text uppercase tracking-wide">
-                            Número de celular
-                        </label>
-
-                        <div
-                            className={[
-                                'flex items-center gap-2 rounded-xl border bg-background px-4 py-3.5 transition-all duration-150',
-                                error
-                                    ? 'border-brand-red ring-1 ring-brand-red/30'
-                                    : 'border-gray-200 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green/30',
-                            ].join(' ')}
-                        >
-                            {/* Country flag + code */}
-                            <span className="text-base select-none shrink-0">🇧🇷</span>
-                            <span className="text-sm font-medium text-secondary-text shrink-0">+55</span>
-                            <div className="w-px h-4 bg-gray-200 shrink-0" />
-
-                            <input
-                                ref={inputRef}
-                                id="phone"
-                                type="tel"
-                                inputMode="numeric"
-                                autoComplete="tel"
-                                placeholder="(11) 99999-9999"
-                                value={displayValue}
-                                onChange={handleChange}
-                                disabled={loading}
-                                className="flex-1 bg-transparent text-base font-medium text-primary-text placeholder:text-gray-400 outline-none disabled:opacity-50"
-                            />
-                        </div>
-
-                        {error && (
-                            <p className="text-xs text-brand-red font-medium animate-fade-in">{error}</p>
-                        )}
-                    </div>
-
+                {/* Google button */}
+                <div className="flex flex-col gap-3">
                     <button
-                        type="submit"
-                        disabled={loading || !valid}
+                        onClick={handleGoogleLogin}
+                        disabled={loading}
                         className={[
-                            'w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-base transition-all duration-150',
-                            valid && !loading
-                                ? 'bg-brand-green text-white hover:brightness-105 active:scale-[0.97] shadow-sm shadow-brand-green/20'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+                            'w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-semibold text-base border transition-all duration-150',
+                            loading
+                                ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-surface border-gray-200 text-primary-text hover:bg-gray-50 hover:border-gray-300 active:scale-[0.97] shadow-sm',
                         ].join(' ')}
                     >
                         {loading ? (
                             <>
-                                <Loader2 size={18} className="animate-spin" />
-                                Enviando…
+                                <Loader2 size={18} className="animate-spin text-secondary-text" />
+                                <span>Abrindo Google…</span>
                             </>
                         ) : (
                             <>
-                                Receber link
-                                <ArrowRight size={18} />
+                                <GoogleIcon />
+                                <span>Entrar com Google</span>
                             </>
                         )}
                     </button>
-                </form>
+
+                    {error && (
+                        <p className="text-xs text-brand-red font-medium text-center animate-fade-in">
+                            {error}
+                        </p>
+                    )}
+                </div>
             </div>
 
             {/* Footer */}
-            <p className="text-center text-xs text-secondary-text leading-relaxed px-4">
+            <p className="text-center text-[10px] text-secondary-text leading-relaxed px-4">
                 Ao continuar, você concorda com os{' '}
                 <span className="text-primary-text font-medium underline underline-offset-2 cursor-pointer">
                     Termos de Uso

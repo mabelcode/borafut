@@ -21,12 +21,12 @@
 | Estilização | Tailwind CSS (v4, CSS-first via `@theme`) |
 | Estado / Cache | TanStack React Query |
 | Banco de Dados | **Supabase** (PostgreSQL + Auth + Realtime + Edge Functions) |
-| Autenticação | **Supabase Auth** — Magic Link entregue via **WhatsApp** (Meta Cloud API) |
+| Autenticação | **Supabase Auth** — Google OAuth (Social Login) |
 | Pagamentos | **A definir** (geração de Pix dinâmico + Webhook) |
 | Ícones | lucide-react |
 | Fonte | Inter (Google Fonts) |
 
-> **Nota sobre Auth:** Em vez de OTP por código, usamos **Magic Link** (Supabase Auth nativo) entregue como mensagem no WhatsApp via **Meta WhatsApp Cloud API**. O free tier da Meta cobre até **1.000 conversas/mês** — suficiente para o volume atual de ~60-70 usuários/mês. Setup único: aprovação de conta Meta Business (~1-2 dias). Sem custo recorrente dentro do limite.
+> **Nota sobre Auth:** Usamos **Google OAuth via Supabase Auth**. Setup rápido (~30 min): criação de credenciais no Google Cloud Console + configuração no painel do Supabase. O e-mail retornado pelo Google é a identidade principal do usuário. O número de telefone (para Pix e notificações) é coletado na tela de onboarding do primeiro acesso.
 >
 > **Nota sobre Pagamentos:** O provedor de Pix dinâmico será definido no momento da implementação dessa funcionalidade.
 
@@ -42,9 +42,9 @@
 ## 4. Funcionalidades do MVP
 
 ### A. Autenticação e Perfil
-- Login **passwordless via Magic Link** enviado diretamente no **WhatsApp** do usuário (Meta Cloud API + Supabase Auth).
-- Fluxo: usuário digita número de WhatsApp → recebe link no WhatsApp → clica → autenticado. Zero digitação de código.
-- No primeiro acesso: cadastro de **Nome/Apelido** e **Posição Principal** (`GOALKEEPER` | `DEFENSE` | `ATTACK`).
+- Login via **Google OAuth** (Supabase Auth Social Login).
+- Fluxo: usuário clica em "Entrar com Google" → popup/redirect Google → autenticado. Zero formulário.
+- No primeiro acesso (quando `displayName` está vazio): tela de onboarding para cadastro de **Nome/Apelido**, **Posição Principal** (`GOALKEEPER` | `DEFENSE` | `ATTACK`) e **Número de WhatsApp** (necessário para notificações e Pix).
 - O **Score** (nível técnico) do jogador é a média de todas as avaliações recebidas de outros jogadores. É dinâmico e evolui com cada partida.
 
 ### B. Gestão de Partidas

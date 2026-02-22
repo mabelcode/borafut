@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Calendar, Users, CircleDollarSign, Plus, LogOut, ChevronRight, Loader2 } from 'lucide-react'
+import { Calendar, Users, CircleDollarSign, Plus, LogOut, ChevronRight, Loader2, Clock, ShieldCheck, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useMatches, type Match } from '@/hooks/useMatches'
+import { useMyRegistrations, type MyRegistrationsMap } from '@/hooks/useMyRegistrations'
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -27,11 +28,27 @@ const STATUS_LABEL: Record<Match['status'], { label: string; className: string }
 
 /* ── Match Card ──────────────────────────────────────────────────── */
 
-function MatchCard({ match }: { match: Match }) {
+function MatchCard({
+    match, myStatus, onSelect,
+}: {
+    match: Match
+    myStatus: MyRegistrationsMap[string] | undefined
+    onSelect: () => void
+}) {
     const badge = STATUS_LABEL[match.status]
 
+    const MY_STATUS_CONFIG = {
+        CONFIRMED: { label: 'Confirmado ✓', className: 'bg-brand-green text-white' },
+        RESERVED: { label: 'Aguardando pagamento', className: 'bg-amber-50 text-amber-600 border border-amber-100' },
+        WAITLIST: { label: 'Na fila de espera', className: 'bg-gray-100 text-secondary-text' },
+    }
+    const myBadge = myStatus ? MY_STATUS_CONFIG[myStatus] : null
+
     return (
-        <div className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform duration-100 cursor-pointer">
+        <div
+            onClick={onSelect}
+            className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform duration-100 cursor-pointer"
+        >
             {/* Top row */}
             <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold text-primary-text leading-tight">
@@ -78,10 +95,22 @@ function MatchCard({ match }: { match: Match }) {
 
             {/* CTA */}
             {match.status === 'OPEN' && (
-                <button className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-green text-white text-sm font-semibold hover:brightness-105 active:scale-[0.97] transition-all duration-150 shadow-sm shadow-brand-green/20">
-                    Tô Dentro
-                    <ChevronRight size={16} />
-                </button>
+                myBadge ? (
+                    <div className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold ${myBadge.className}`}>
+                        {myStatus === 'CONFIRMED' && <ShieldCheck size={15} />}
+                        {myStatus === 'RESERVED' && <Clock size={15} />}
+                        {myStatus === 'WAITLIST' && <AlertCircle size={15} />}
+                        {myBadge.label}
+                    </div>
+                ) : (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onSelect() }}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-green text-white text-sm font-semibold hover:brightness-105 active:scale-[0.97] transition-all duration-150 shadow-sm shadow-brand-green/20"
+                    >
+                        Tô Dentro
+                        <ChevronRight size={16} />
+                    </button>
+                )
             )}
         </div>
     )
@@ -106,11 +135,13 @@ function EmptyState() {
 interface Props {
     onSignOut: () => void
     onCreateMatch: () => void
+    onSelectMatch: (matchId: string) => void
 }
 
-export default function Home({ onSignOut, onCreateMatch }: Props) {
+export default function Home({ onSignOut, onCreateMatch, onSelectMatch }: Props) {
     const { user } = useCurrentUser()
     const { matches, loading, error } = useMatches()
+    const { data: myRegistrations } = useMyRegistrations()
     const [signingOut, setSigningOut] = useState(false)
 
     async function handleSignOut() {
@@ -167,7 +198,12 @@ export default function Home({ onSignOut, onCreateMatch }: Props) {
                 ) : (
                     <div className="flex flex-col gap-3">
                         {matches.map((match) => (
-                            <MatchCard key={match.id} match={match} />
+                            <MatchCard
+                                key={match.id}
+                                match={match}
+                                myStatus={myRegistrations[match.id]}
+                                onSelect={() => onSelectMatch(match.id)}
+                            />
                         ))}
                     </div>
                 )}

@@ -11,6 +11,8 @@ import MatchDetail from '@/pages/MatchDetail'
 import AdminSettings from '@/pages/AdminSettings'
 import WaitingForInvite from '@/pages/WaitingForInvite'
 import JoinGroup from '@/pages/JoinGroup'
+import SuperAdmin from './pages/SuperAdmin'
+import Layout from '@/components/Layout'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 /**
@@ -40,6 +42,7 @@ type AppState =
   | 'create-match'
   | 'match-detail'
   | 'admin-settings'
+  | 'super-admin'
 
 /** Reads ?token= from the current URL without changing history */
 function getInviteToken(): string | null {
@@ -63,7 +66,7 @@ function AppInner({
   inviteToken: string | null
   initialAppState: AppState
 }) {
-  const { groups, isAdminInAnyGroup, adminGroups, loading, refetch } = useCurrentUser()
+  const { user, groups, isAdminInAnyGroup, adminGroups, loading, refetch } = useCurrentUser()
   const [appState, setAppState] = useState<AppState>(initialAppState)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
 
@@ -98,69 +101,83 @@ function AppInner({
   // (passed from Home → App → MatchDetail via session + group membership check inside MatchDetail)
 
   return (
-    <div className="min-h-screen bg-background text-primary-text font-sans">
-      <div className="mx-auto max-w-md px-4 py-8">
+    <Layout
+      user={user}
+      onSignOut={async () => {
+        await supabase.auth.signOut()
+        setAppState('login')
+      }}
+      onSuperAdmin={() => setAppState('super-admin')}
+    >
+      {appState === 'join-group' && inviteToken && (
+        <JoinGroup
+          token={inviteToken}
+          session={session}
+          onSuccess={() => {
+            clearTokenFromUrl()
+            refetch().then(() => setAppState('home'))
+          }}
+          onError={() => {
+            clearTokenFromUrl()
+            setAppState(groups.length > 0 ? 'home' : 'waiting-for-invite')
+          }}
+        />
+      )}
 
-        {appState === 'join-group' && inviteToken && (
-          <JoinGroup
-            token={inviteToken}
-            session={session}
-            onSuccess={() => {
-              clearTokenFromUrl()
-              refetch().then(() => setAppState('home'))
-            }}
-            onError={() => {
-              clearTokenFromUrl()
-              setAppState(groups.length > 0 ? 'home' : 'waiting-for-invite')
-            }}
-          />
-        )}
+      {appState === 'waiting-for-invite' && (
+        <WaitingForInvite
+          onRefresh={() => refetch().then(() => {
+            if (groups.length > 0) setAppState('home')
+          })}
+        />
+      )}
 
-        {appState === 'waiting-for-invite' && (
-          <WaitingForInvite
-            onRefresh={() => refetch().then(() => {
-              if (groups.length > 0) setAppState('home')
-            })}
-          />
-        )}
+      {appState === 'home' && (
+        <Home
+          onCreateMatch={() => setAppState('create-match')}
+          onSelectMatch={(id: string) => { setSelectedMatchId(id); setAppState('match-detail') }}
+          onSettings={() => setAppState('admin-settings')}
+        />
+      )}
 
-        {appState === 'home' && (
+      {appState === 'super-admin' && (
+        user?.isSuperAdmin ? (
+          <SuperAdmin onBack={() => setAppState('home')} />
+        ) : (
           <Home
-            onSignOut={() => setAppState('login')}
             onCreateMatch={() => setAppState('create-match')}
-            onSelectMatch={(id) => { setSelectedMatchId(id); setAppState('match-detail') }}
+            onSelectMatch={(id: string) => { setSelectedMatchId(id); setAppState('match-detail') }}
             onSettings={() => setAppState('admin-settings')}
           />
-        )}
+        )
+      )}
 
-        {appState === 'create-match' && (
-          <CreateMatch
-            session={session}
-            groupId={activeAdminGroupId}
-            onBack={() => setAppState('home')}
-            onCreated={() => setAppState('home')}
-          />
-        )}
+      {appState === 'create-match' && (
+        <CreateMatch
+          session={session}
+          groupId={activeAdminGroupId}
+          onBack={() => setAppState('home')}
+          onCreated={() => setAppState('home')}
+        />
+      )}
 
-        {appState === 'match-detail' && selectedMatchId && (
-          <MatchDetail
-            matchId={selectedMatchId}
-            session={session}
-            isAdmin={isAdminInAnyGroup}
-            onBack={() => setAppState('home')}
-          />
-        )}
+      {appState === 'match-detail' && selectedMatchId && (
+        <MatchDetail
+          matchId={selectedMatchId}
+          session={session}
+          isAdmin={isAdminInAnyGroup}
+          onBack={() => setAppState('home')}
+        />
+      )}
 
-        {appState === 'admin-settings' && (
-          <AdminSettings
-            session={session}
-            adminGroups={adminGroups}
-            onBack={() => setAppState('home')}
-          />
-        )}
-
-      </div>
-    </div>
+      {appState === 'admin-settings' && (
+        <AdminSettings
+          session={session}
+          adminGroups={adminGroups}
+          onBack={() => setAppState('home')}
+        />
+      )}
+    </Layout>
   )
 }
 

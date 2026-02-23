@@ -1,6 +1,4 @@
-import { useState } from 'react'
-import { Calendar, Users, CircleDollarSign, Plus, LogOut, ChevronRight, Loader2, Clock, ShieldCheck, AlertCircle, Settings } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { Calendar, Users, CircleDollarSign, Plus, ChevronRight, Loader2, Clock, ShieldCheck, AlertCircle, Settings } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useMatches, type Match } from '@/hooks/useMatches'
 import { useMyRegistrations, type MyRegistrationsMap } from '@/hooks/useMyRegistrations'
@@ -49,7 +47,6 @@ function MatchCard({
             onClick={onSelect}
             className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform duration-100 cursor-pointer"
         >
-            {/* Top row */}
             <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold text-primary-text leading-tight">
                     {match.title || 'Partida sem título'}
@@ -59,7 +56,6 @@ function MatchCard({
                 </span>
             </div>
 
-            {/* Details */}
             <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-1 text-secondary-text">
@@ -93,7 +89,6 @@ function MatchCard({
                 </div>
             </div>
 
-            {/* CTA */}
             {match.status === 'OPEN' && (
                 myBadge ? (
                     <div className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold ${myBadge.className}`}>
@@ -133,50 +128,19 @@ function EmptyState() {
 /* ── Home ────────────────────────────────────────────────────────── */
 
 interface Props {
-    onSignOut: () => void
     onCreateMatch: () => void
     onSelectMatch: (matchId: string) => void
     onSettings: () => void
 }
 
-export default function Home({ onSignOut, onCreateMatch, onSelectMatch, onSettings }: Props) {
-    const { user, isAdminInAnyGroup } = useCurrentUser()
+export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props) {
+    const { isAdminInAnyGroup } = useCurrentUser()
     const { matches, loading, error } = useMatches()
     const { data: myRegistrations } = useMyRegistrations()
-    const [signingOut, setSigningOut] = useState(false)
-
-    async function handleSignOut() {
-        setSigningOut(true)
-        await supabase.auth.signOut()
-        onSignOut()
-    }
-
-    const firstName = user?.displayName?.split(' ')[0] ?? 'jogador'
 
     return (
         <>
             <div className="flex flex-col gap-6 animate-fade-in">
-                {/* Header */}
-                <header className="flex items-center justify-between pt-2">
-                    <div>
-                        <h1 className="text-2xl font-extrabold tracking-tight text-primary-text">
-                            bora<span className="text-brand-green">fut</span>
-                        </h1>
-                        <p className="text-sm text-secondary-text">
-                            Olá, <span className="font-medium text-primary-text">{firstName}</span> 👋
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={handleSignOut}
-                        disabled={signingOut}
-                        className="flex items-center gap-1.5 text-xs text-secondary-text hover:text-brand-red transition-colors duration-150 py-2 px-3 rounded-xl hover:bg-brand-red/5"
-                    >
-                        {signingOut ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-                        Sair
-                    </button>
-                </header>
-
                 {/* Section title */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-base font-semibold text-primary-text">Partidas</h2>
@@ -219,10 +183,8 @@ export default function Home({ onSignOut, onCreateMatch, onSelectMatch, onSettin
                 )}
             </div>
 
-            {/* Admin FAB — outside animated div so fixed works relative to viewport */}
             {isAdminInAnyGroup && (
                 <div className="group fixed bottom-6 right-6 flex flex-col items-end gap-2 z-50">
-                    {/* Tooltip */}
                     <span className="opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 pointer-events-none bg-primary-text text-white text-xs font-medium px-2.5 py-1 rounded-lg shadow-md whitespace-nowrap">
                         Nova Partida
                     </span>

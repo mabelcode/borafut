@@ -6,7 +6,7 @@ interface Props {
 
 export default function WaitingForInvite({ onRefresh }: Props) {
     return (
-        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 animate-fade-in px-4 text-center">
+        <div className="flex flex-col items-center justify-center py-12 gap-6 animate-fade-in text-center px-4">
             <div className="size-20 rounded-3xl bg-brand-green/10 flex items-center justify-center">
                 <Users size={36} className="text-brand-green" />
             </div>

@@ -1,0 +1,112 @@
+import { useState, useEffect } from 'react'
+import { Search, Loader2, ArrowRight, ShieldCheck, Calendar } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
+import * as Sentry from '@sentry/react'
+
+export default function UsersTab() {
+    const [users, setUsers] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [search, setSearch] = useState('')
+
+    async function fetchUsers() {
+        try {
+            setLoading(true)
+            const { data, error } = await supabase
+                .from('users')
+                .select(`
+          *,
+          group_members(count)
+        `)
+                .order('createdAt', { ascending: false })
+
+            if (error) throw error
+            setUsers(data || [])
+        } catch (err) {
+            logger.error('Erro ao buscar usuários', err)
+            Sentry.captureException(err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchUsers()
+    }, [])
+
+    const filteredUsers = users.filter(u =>
+        u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+        u.phoneNumber?.includes(search)
+    )
+
+    return (
+        <div className="p-4 flex flex-col gap-4">
+            {/* Search */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-text" size={16} />
+                <input
+                    type="text"
+                    placeholder="Buscar usuário por nome ou fone..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
+                />
+            </div>
+
+            {loading ? (
+                <div className="flex justify-center py-10">
+                    <Loader2 size={24} className="animate-spin text-secondary-text" />
+                </div>
+            ) : filteredUsers.length === 0 ? (
+                <div className="text-center py-10 text-secondary-text text-sm">
+                    Nenhum usuário encontrado
+                </div>
+            ) : (
+                <div className="flex flex-col gap-3">
+                    {filteredUsers.map((user) => (
+                        <div key={user.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="size-10 rounded-full bg-gray-100 flex items-center justify-center text-lg">
+                                        {user.displayName?.[0] || 'J'}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-primary-text flex items-center gap-1.5 leading-none">
+                                            {user.displayName}
+                                            {user.isSuperAdmin && <ShieldCheck size={14} className="text-brand-green" />}
+                                        </h3>
+                                        <p className="text-xs text-secondary-text mt-1">{user.phoneNumber || 'Sem fone'}</p>
+                                    </div>
+                                </div>
+                                <button className="text-secondary-text p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <ArrowRight size={18} />
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-gray-50 rounded-xl p-2 flex flex-col gap-0.5 border border-gray-100">
+                                    <span className="text-[9px] font-bold text-secondary-text uppercase tracking-wider">Posição</span>
+                                    <span className="text-xs font-semibold text-primary-text">{user.mainPosition || 'Não definido'}</span>
+                                </div>
+                                <div className="bg-gray-50 rounded-xl p-2 flex flex-col gap-0.5 border border-gray-100">
+                                    <span className="text-[9px] font-bold text-secondary-text uppercase tracking-wider">Bolhas</span>
+                                    <span className="text-xs font-semibold text-primary-text">{user.group_members?.[0]?.count || 0} grupos</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[10px] text-secondary-text mt-1 px-1">
+                                <div className="flex items-center gap-1">
+                                    <Calendar size={10} />
+                                    Cadastrado em {new Date(user.createdAt).toLocaleDateString()}
+                                </div>
+                                <div className="font-bold text-brand-green">
+                                    Score: {user.globalScore}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}

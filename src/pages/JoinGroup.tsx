@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -26,6 +27,7 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
                 .single()
 
             if (groupErr || !group) {
+                if (groupErr) Sentry.captureException(groupErr, { tags: { context: 'JoinGroup.findGroup' } })
                 setState('error')
                 return
             }
@@ -58,6 +60,7 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
                 .insert({ groupId: group.id, userId: session.user.id, role: 'PLAYER' })
 
             if (insertErr) {
+                Sentry.captureException(insertErr, { tags: { context: 'JoinGroup.insertMember' } })
                 setState('error')
                 return
             }

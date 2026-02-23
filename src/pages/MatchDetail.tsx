@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useState, useEffect } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
@@ -171,7 +172,10 @@ function CTAButton({
             matchId, userId: session.user.id, status,
         })
         setLoading(false)
-        if (error) { setError(error.message); return }
+        if (error) {
+            Sentry.captureException(error, { tags: { context: 'MatchDetail.register', status } })
+            setError(error.message); return
+        }
         onAction()
     }
 
@@ -268,10 +272,11 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
     }, [data?.managerId])
 
     async function handleConfirm(regId: string) {
-        await supabase
+        const { error } = await supabase
             .from('match_registrations')
             .update({ status: 'CONFIRMED' })
             .eq('id', regId)
+        if (error) Sentry.captureException(error, { tags: { context: 'MatchDetail.confirmPayment' } })
         refetch()
     }
 

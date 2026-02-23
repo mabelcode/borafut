@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
@@ -61,7 +62,7 @@ function AppInner({
   inviteToken: string | null
   initialAppState: AppState
 }) {
-  const { user, groups, isAdminInAnyGroup, adminGroups, loading, refetch } = useCurrentUser()
+  const { groups, isAdminInAnyGroup, adminGroups, loading, refetch } = useCurrentUser()
   const [appState, setAppState] = useState<AppState>(initialAppState)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
 
@@ -171,10 +172,15 @@ export default function App() {
     if (!newSession) {
       setSession(null)
       setAppState('login')
+      Sentry.setUser(null)
       return
     }
 
     setSession(newSession)
+    Sentry.setUser({
+      id: newSession.user.id,
+      email: newSession.user.email,
+    })
 
     // Check if user has a profile (displayName set = completed onboarding)
     const { data } = await supabase

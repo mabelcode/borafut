@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useState } from 'react'
 import { ArrowLeft, Calendar, Users, CircleDollarSign, FileText, Loader2, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -98,7 +99,7 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
         })
 
         if (error) {
-            console.error('[CreateMatch] Supabase error:', error)
+            Sentry.captureException(error, { tags: { context: 'CreateMatch' } })
             setError(`Erro ao criar partida: ${error.message}`)
             setLoading(false)
             return

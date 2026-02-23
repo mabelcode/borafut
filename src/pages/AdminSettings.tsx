@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Key, Loader2, CheckCircle2, Link2, Copy, RefreshCw, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -66,7 +67,10 @@ export default function AdminSettings({ session, adminGroups, onBack }: Props) {
             .update({ pixKey: pixKey.trim() })
             .eq('id', session.user.id)
         setSaving(false)
-        if (error) { setPixError(`Erro: ${error.message}`); return }
+        if (error) {
+            Sentry.captureException(error, { tags: { context: 'AdminSettings.savePix' } })
+            setPixError(`Erro: ${error.message}`); return
+        }
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
     }
@@ -87,6 +91,8 @@ export default function AdminSettings({ session, adminGroups, onBack }: Props) {
         if (!error) {
             setInviteToken(newToken)
             setInviteExpiresAt(expiresAt)
+        } else {
+            Sentry.captureException(error, { tags: { context: 'AdminSettings.regenerateInvite' } })
         }
         setRegenerating(false)
     }

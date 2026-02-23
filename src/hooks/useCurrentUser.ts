@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
@@ -26,28 +27,36 @@ export function useCurrentUser() {
     const [loading, setLoading] = useState(true)
 
     async function fetchUser() {
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        if (!authUser) { setLoading(false); return }
+        try {
+            const { data: { user: authUser } } = await supabase.auth.getUser()
+            if (!authUser) { setLoading(false); return }
 
-        const [profileRes, membershipsRes] = await Promise.all([
-            supabase.from('users').select('*').eq('id', authUser.id).single(),
-            supabase
-                .from('group_members')
-                .select('role, groupId, groups(id, name, inviteToken, inviteExpiresAt)')
-                .eq('userId', authUser.id),
-        ])
+            const [profileRes, membershipsRes] = await Promise.all([
+                supabase.from('users').select('*').eq('id', authUser.id).single(),
+                supabase
+                    .from('group_members')
+                    .select('role, groupId, groups(id, name, inviteToken, inviteExpiresAt)')
+                    .eq('userId', authUser.id),
+            ])
 
-        setUser(profileRes.data ?? null)
+            if (profileRes.error) Sentry.captureException(profileRes.error, { tags: { context: 'fetchUser.profile' } })
+            if (membershipsRes.error) Sentry.captureException(membershipsRes.error, { tags: { context: 'fetchUser.memberships' } })
 
-        const memberships: GroupMembership[] = (membershipsRes.data ?? []).map((m: any) => ({
-            groupId: m.groups.id,
-            groupName: m.groups.name,
-            role: m.role,
-            inviteToken: m.groups.inviteToken,
-            inviteExpiresAt: m.groups.inviteExpiresAt,
-        }))
-        setGroups(memberships)
-        setLoading(false)
+            setUser(profileRes.data ?? null)
+
+            const memberships: GroupMembership[] = (membershipsRes.data ?? []).map((m: any) => ({
+                groupId: m.groups.id,
+                groupName: m.groups.name,
+                role: m.role,
+                inviteToken: m.groups.inviteToken,
+                inviteExpiresAt: m.groups.inviteExpiresAt,
+            }))
+            setGroups(memberships)
+        } catch (err) {
+            Sentry.captureException(err, { tags: { context: 'fetchUser' } })
+        } finally {
+            setLoading(false)
+        }
     }
 
     useEffect(() => { fetchUser() }, [])

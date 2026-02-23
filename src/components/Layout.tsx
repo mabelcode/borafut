@@ -66,9 +66,12 @@ export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, c
                         )}
                     </div>
 
-                    <h1 className="text-xl font-black tracking-tighter text-primary-text flex items-center gap-1 shrink-0">
-                        bora<span className="text-brand-green">fut</span>
-                    </h1>
+                    <img
+                        src="/logo.png"
+                        alt="BoraFut Logo"
+                        className="h-8 w-auto cursor-pointer"
+                        onClick={onHome}
+                    />
                 </header>
 
                 {/* Sidebar Drawer Overlay */}

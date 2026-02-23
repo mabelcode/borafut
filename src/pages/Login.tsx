@@ -58,14 +58,15 @@ export default function Login() {
                 <div className="flex flex-col items-center text-center pt-16 pb-10 gap-4">
                     {/* Ball icon */}
                     <div className="relative mb-2">
-                        <div className="size-20 rounded-3xl bg-brand-green flex items-center justify-center shadow-lg shadow-brand-green/30">
-                            <span className="text-4xl leading-none select-none">⚽</span>
-                        </div>
-                        <div className="absolute -inset-1 rounded-3xl bg-brand-green/20 blur-lg -z-10" />
+                        <img
+                            src="/logo.png"
+                            alt="BoraFut Logo"
+                            className="h-24 w-auto drop-shadow-2xl"
+                        />
                     </div>
 
                     <div>
-                        <h1 className="text-5xl font-extrabold tracking-tight text-primary-text">
+                        <h1 className="text-5xl font-extrabold tracking-tight text-primary-text hidden">
                             bora<span className="text-brand-green">fut</span>
                         </h1>
                         <p className="text-secondary-text mt-2 text-base leading-relaxed max-w-[260px] mx-auto">

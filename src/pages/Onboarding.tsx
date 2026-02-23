@@ -93,9 +93,11 @@ export default function Onboarding({ session, onComplete, onSignOut }: Props) {
         <div className="flex flex-col gap-8 animate-fade-in">
             {/* Brand + step indicator */}
             <div className="flex flex-col gap-1 pt-2">
-                <h1 className="text-4xl font-extrabold tracking-tight text-primary-text">
-                    bora<span className="text-brand-green">fut</span>
-                </h1>
+                <img
+                    src="/logo.png"
+                    alt="BoraFut Logo"
+                    className="h-10 w-auto"
+                />
                 <p className="text-sm text-secondary-text">Complete seu perfil para começar</p>
             </div>
 

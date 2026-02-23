@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 import type { Session } from '@supabase/supabase-js'
 import Login from '@/pages/Login'
 import Onboarding from '@/pages/Onboarding'
@@ -72,6 +73,7 @@ function AppInner({
     if (appState !== 'loading') return // already routed
 
     if (inviteToken) {
+      logger.debug('Invite token detected', { inviteToken })
       setAppState('join-group')
     } else if (groups.length === 0) {
       setAppState('waiting-for-invite')

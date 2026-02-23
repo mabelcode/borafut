@@ -248,5 +248,24 @@ audit_log (
 - **Taxa:** 5% informativa no MVP.
 - **Bolha:** visibilidade escopada ao `groupId`. Sem grupo → tela "Aguardando convite".
 - **Link de convite:** multi-uso, duração opcional via `inviteExpiresAt`.
-- **Sentry:** todo `catch` de operação crítica deve chamar `Sentry.captureException()`.
-- **Grants explícitos:** tabelas criadas via migration exigem `GRANT` explícito ao role `authenticated` (não é automático como no Dashboard).
+- **Sentry:** todo `catch` de operação crítica deve chamar `Sentry.captureException()` ou usar o `logger.error()`.
+
+---
+
+## 11. Padrões de Desenvolvimento
+
+### Testes e Cobertura
+- **Obrigatório:** Todo novo código (componentes, hooks, utilitários) deve vir acompanhado de testes.
+- **Unitários (Vitest):** Devem cobrir lógica de negócio, transformações de dados e estados de componentes básicos.
+- **Integração/E2E (Playwright):** Devem cobrir fluxos críticos (ex: criar partida, pagar Pix) que interagem com o sistema de ponta a ponta.
+- **Cobertura de Linhas:** Alvo mínimo de 80% em lógica de negócio (`src/lib`, `src/hooks`).
+
+### Logging e Observabilidade
+- **Proibido:** Uso de `console.log` no branch `main`.
+- Utilizar a utility `logger` (`src/lib/logger.ts`) com os seguintes níveis:
+  - `TRACE`: Detalhes exaustivos sobre o fluxo de execução (ex: logs de rendering detalhado).
+  - `DEBUG`: Informações úteis para depuração (ex: payloads de API em dev).
+  - `INFO`: Mensagens gerais sobre o estado da aplicação (ex: "Carrinho atualizado").
+  - `WARN`: Situações inesperadas que não impedem o funcionamento (logado no Sentry como **Warning**).
+  - `ERROR`: Falhas que exigem atenção imediata (logado no Sentry como **Exception**).
+- Todo erro interceptado em blocos `catch` deve ser registrado via `logger.error(message, error)`.- **Grants explícitos:** tabelas criadas via migration exigem `GRANT` explícito ao role `authenticated` (não é automático como no Dashboard).

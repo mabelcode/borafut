@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react'
 import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 import type { Session } from '@supabase/supabase-js'
 
 interface Props {
@@ -27,7 +28,10 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
                 .single()
 
             if (groupErr || !group) {
-                if (groupErr) Sentry.captureException(groupErr, { tags: { context: 'JoinGroup.findGroup' } })
+                if (groupErr) {
+                    Sentry.captureException(groupErr, { tags: { context: 'JoinGroup.findGroup' } })
+                    logger.error('Erro ao buscar grupo pelo token', groupErr)
+                }
                 setState('error')
                 return
             }

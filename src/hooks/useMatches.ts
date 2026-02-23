@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
+import * as Sentry from '@sentry/react'
 
 export interface Match {
     id: string
@@ -20,18 +22,25 @@ export function useMatches() {
 
     async function fetchMatches() {
         setLoading(true)
-        // RLS automatically filters to the user's groups — no extra filter needed
-        const { data, error } = await supabase
-            .from('matches')
-            .select('*')
-            .order('scheduledAt', { ascending: true })
+        setError(null)
 
-        if (error) {
-            setError(error.message)
-        } else {
+        try {
+            // RLS automatically filters to the user's groups — no extra filter needed
+            const { data, error } = await supabase
+                .from('matches')
+                .select('*')
+                .order('scheduledAt', { ascending: true })
+
+            if (error) throw error
             setMatches(data ?? [])
+        } catch (err: any) {
+            const msg = err.message || 'Erro desconhecido ao buscar partidas'
+            logger.error('Erro ao buscar partidas', err)
+            setError(msg)
+            Sentry.captureException(err)
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     useEffect(() => { fetchMatches() }, [])

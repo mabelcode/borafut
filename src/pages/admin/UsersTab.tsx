@@ -12,15 +12,18 @@ export default function UsersTab() {
     async function fetchUsers() {
         try {
             setLoading(true)
+            logger.debug('Iniciando busca de usuários...')
+
             const { data, error } = await supabase
                 .from('users')
-                .select(`
-          *,
-          group_members(count)
-        `)
+                .select('*')
                 .order('createdAt', { ascending: false })
 
             if (error) throw error
+
+            logger.debug('Usuários encontrados:', { count: data?.length, users: data })
+
+            // For now, let's fetch counts separately or accept 0 until we debug the join
             setUsers(data || [])
         } catch (err) {
             logger.error('Erro ao buscar usuários', err)
@@ -34,10 +37,11 @@ export default function UsersTab() {
         fetchUsers()
     }, [])
 
-    const filteredUsers = users.filter(u =>
-        u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
-        u.phoneNumber?.includes(search)
-    )
+    const filteredUsers = users.filter(u => {
+        const nameMatch = u.displayName?.toLowerCase().includes(search.toLowerCase()) ?? false
+        const phoneMatch = u.phoneNumber?.includes(search) ?? false
+        return nameMatch || phoneMatch
+    })
 
     return (
         <div className="p-4 flex flex-col gap-4">

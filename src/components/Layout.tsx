@@ -5,12 +5,13 @@ import type { UserProfile } from '@/hooks/useCurrentUser'
 interface Props {
     title?: string
     user: UserProfile | null
+    onHome: () => void
     onSignOut: () => void
     onSuperAdmin: () => void
     children: React.ReactNode
 }
 
-export default function Layout({ title, user, onSignOut, onSuperAdmin, children }: Props) {
+export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, children }: Props) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [signingOut, setSigningOut] = useState(false)
 
@@ -107,7 +108,7 @@ export default function Layout({ title, user, onSignOut, onSuperAdmin, children 
                     {/* Sidebar Navigation */}
                     <nav className="flex-1 p-4 flex flex-col gap-1.5 overflow-y-auto">
                         <button
-                            onClick={() => { setIsMenuOpen(false) }}
+                            onClick={() => { onHome(); setIsMenuOpen(false) }}
                             className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-sm font-bold text-primary-text hover:bg-gray-50 active:scale-[0.98] transition-all group"
                         >
                             <div className="size-9 rounded-xl flex items-center justify-center bg-gray-50 text-secondary-text group-hover:bg-brand-green/10 group-hover:text-brand-green transition-colors">

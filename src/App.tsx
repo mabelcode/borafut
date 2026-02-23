@@ -135,6 +135,7 @@ function AppInner({
     <Layout
       title={STATE_TITLES[appState]}
       user={user}
+      onHome={() => setAppState('home')}
       onSignOut={async () => {
         await supabase.auth.signOut()
         setAppState('login')

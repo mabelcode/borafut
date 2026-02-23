@@ -140,7 +140,7 @@ interface Props {
 }
 
 export default function Home({ onSignOut, onCreateMatch, onSelectMatch, onSettings }: Props) {
-    const { user } = useCurrentUser()
+    const { user, isAdminInAnyGroup } = useCurrentUser()
     const { matches, loading, error } = useMatches()
     const { data: myRegistrations } = useMyRegistrations()
     const [signingOut, setSigningOut] = useState(false)
@@ -180,7 +180,7 @@ export default function Home({ onSignOut, onCreateMatch, onSelectMatch, onSettin
                 {/* Section title */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-base font-semibold text-primary-text">Partidas</h2>
-                    {user?.isAdmin && (
+                    {isAdminInAnyGroup && (
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-green/10 text-brand-green px-2 py-0.5 rounded-full">
                                 Admin
@@ -220,7 +220,7 @@ export default function Home({ onSignOut, onCreateMatch, onSelectMatch, onSettin
             </div>
 
             {/* Admin FAB — outside animated div so fixed works relative to viewport */}
-            {user?.isAdmin && (
+            {isAdminInAnyGroup && (
                 <div className="group fixed bottom-6 right-6 flex flex-col items-end gap-2 z-50">
                     {/* Tooltip */}
                     <span className="opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-150 pointer-events-none bg-primary-text text-white text-xs font-medium px-2.5 py-1 rounded-lg shadow-md whitespace-nowrap">

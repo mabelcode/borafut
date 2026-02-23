@@ -57,11 +57,12 @@ function FieldCard({
 
 interface Props {
     session: Session
+    groupId: string
     onBack: () => void
     onCreated: () => void
 }
 
-export default function CreateMatch({ session, onBack, onCreated }: Props) {
+export default function CreateMatch({ session, groupId, onBack, onCreated }: Props) {
     const [title, setTitle] = useState('')
     const [scheduledAt, setScheduledAt] = useState('')
     const [maxPlayers, setMaxPlayers] = useState('')
@@ -87,6 +88,7 @@ export default function CreateMatch({ session, onBack, onCreated }: Props) {
         setError('')
 
         const { error } = await supabase.from('matches').insert({
+            groupId,
             managerId: session.user.id,
             title: title.trim() || null,
             scheduledAt: new Date(scheduledAt).toISOString(),

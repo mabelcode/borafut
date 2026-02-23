@@ -7,7 +7,7 @@
 ## 1. Visão Geral do Produto
 
 **Borafut** é um Web App Mobile-First para gestão de partidas amadoras de futebol society. Resolve três dores principais:
-1. **Lista de presença** gerenciada via pagamento automático ("Pay-to-Play").
+1. **Lista de presença** gerenciada via pagamento ("Pay-to-Play").
 2. **Balanceamento técnico** dos times via avaliação peer-to-peer (360°).
 3. **Interface com zero fricção** — fluxo rápido, mobile-first.
 
@@ -26,117 +26,181 @@
 | Ícones | lucide-react |
 | Fonte | Inter (Google Fonts) |
 
-> **Nota sobre Auth:** Usamos **Google OAuth via Supabase Auth**. Setup rápido (~30 min): criação de credenciais no Google Cloud Console + configuração no painel do Supabase. O e-mail retornado pelo Google é a identidade principal do usuário. O número de telefone (para Pix e notificações) é coletado na tela de onboarding do primeiro acesso.
->
-> **Nota sobre Pagamentos (MVP):** Confirmação **manual pelo admin**, sem CNPJ. O admin cadastra sua chave Pix pessoal no perfil. Ao reservar, o app gera um QR Code Pix estático (payload EMV/BR Code) com o valor exato da partida e o nome do jogador como descrição. O admin vê os RESERVED na tela de detalhe da partida e confirma manualmente. A taxa da plataforma é de **5%** sobre o valor da partida (informativa por ora — sem split implementado). Confirmação automática via webhook (OpenPix/Woovi) fica para fase futura quando houver CNPJ/MEI.
+> **Nota sobre Pagamentos (MVP):** Confirmação **manual pelo Group Admin**, sem CNPJ. Admin cadastra chave Pix pessoal. App gera QR Code Pix (payload EMV/BR Code) com valor e nome do jogador. Admin confirma manualmente. Taxa de plataforma de **5%** informativa (sem split por ora). Confirmação automática via webhook (OpenPix/Woovi) fica para fase futura.
 
 ---
 
-## 3. Atores do Sistema
+## 3. Hierarquia de Papéis
 
-- **Gerente (Admin):** Cria a partida, define regras, aciona o sorteio dos times, marca a partida como concluída.
-- **Jogador (User):** Recebe o link, paga para confirmar presença, visualiza seu time, avalia outros jogadores pós-jogo.
+A hierarquia é **inclusiva**: cada nível herda as capacidades do nível anterior.
+
+```
+Super Admin  ⊃  Admin  ⊃  Player
+
+Player      → joga, paga, se inscreve em partidas do seus grupos
+Admin       → tudo do Player + cria partidas, confirma pagamentos, gera link de convite
+              pode ser Admin em N grupos e Player em outros
+Super Admin → tudo do Admin em TODOS os grupos sem exceção
+```
+
+### Implementação dos papéis
+
+```
+users.isSuperAdmin boolean DEFAULT false
+  └── plataforma (definido MANUALMENTE no banco, nunca via app)
+  └── bypassa toda RLS de grupo — vê e gerencia absolutamente tudo
+
+group_members.role = 'ADMIN' | 'PLAYER'
+  └── escopo do grupo — um usuário pode ser ADMIN em 10 grupos e PLAYER em outros 20
+  └── ADMIN também definido MANUALMENTE no banco, nunca via app
+  └── PLAYER é o padrão ao entrar por link de convite
+```
+
+> **Regra crítica:** Nenhum usuário pode se tornar Admin ou Super Admin pelo app. Toda elevação de privilégio é feita manualmente via SQL/Supabase Dashboard.
 
 ---
 
-## 4. Funcionalidades do MVP
+## 4. Conceito de Bolha (Grupo)
+
+- Cada **bolha** é um grupo isolado com seus próprios membros e partidas.
+- Usuários entram via **link de convite** gerado pelo Group Admin:
+  - URL: `borafut.app/join/<inviteToken>` — token opaco de 32 chars hex
+  - O link é **multi-uso** (várias pessoas podem usar o mesmo link simultaneamente)
+  - Admin pode definir uma **duração** para o link (24h, 7 dias, 30 dias, sem expiração)
+  - Admin pode **invalidar** regenerando o token
+  - Na entrada: verifica `inviteExpiresAt IS NULL OR inviteExpiresAt > now()`
+- Partidas pertencem a uma bolha (`matches.groupId`).
+- Toda visibilidade é filtrada por bolha via RLS.
+- Pós-onboarding sem grupo → tela "Aguardando convite".
+
+---
+
+## 5. Funcionalidades
 
 ### A. Autenticação e Perfil
-- Login via **Google OAuth** (Supabase Auth Social Login).
-- Fluxo: usuário clica em "Entrar com Google" → popup/redirect Google → autenticado. Zero formulário.
-- No primeiro acesso (quando `displayName` está vazio): tela de onboarding para cadastro de **Nome/Apelido**, **Posição Principal** (`GOALKEEPER` | `DEFENSE` | `ATTACK`) e **Número de WhatsApp** (necessário para notificações e Pix).
-- O **Score** (nível técnico) do jogador é a média de todas as avaliações recebidas de outros jogadores. É dinâmico e evolui com cada partida.
+- Login via **Google OAuth**.
+- No primeiro acesso: onboarding para **Nome/Apelido**, **Posição** e **WhatsApp**.
+- Pós-onboarding: se veio de `/join/<token>` → entra como PLAYER. Caso contrário → tela "Aguardando convite".
 
 ### B. Gestão de Partidas
-- Gerente cria uma partida definindo: **Data/Hora**, **Limite de Vagas** e **Valor da Taxa**.
+- Group Admin cria partida no seu grupo: **Data/Hora**, **Limite de Vagas**, **Valor da Taxa**.
 
-### C. Pay-to-Play (Core de Presença) — MVP Manual
-- Ao clicar em "Tô Dentro", a vaga fica com status **`RESERVED`**.
-- O app gera um **QR Code Pix estático** no frontend a partir da chave Pix pessoal do admin (campo `pixKey` no perfil), com o valor da partida e o nome do jogador como descrição (para facilitar a identificação pelo admin).
-- A confirmação é **manual pelo Gerente**: ele verifica o extrato bancário e clica em "Confirmar" para cada jogador na tela de detalhes da partida.
-- O status muda para **`CONFIRMED`** via update direto do frontend (feito pelo admin) — MVP trade-off consciente.
-- Jogadores além do limite de vagas entram em **`WAITLIST`**.
-- **Fase futura:** confirmação automática via webhook (OpenPix/Woovi, requer MEI/CNPJ). Taxa de plataforma de **5%** com split de pagamento.
-- **Notificação ao admin via WhatsApp:** quando um jogador reserva, o sistema poderá notificar o admin via WhatsApp (deferred — fase futura).
-- **Política rígida: não há reembolso ou devolução pelo app.** Pagou, confirmou.
+### C. Pay-to-Play — MVP Manual
+- "Tô Dentro" → `RESERVED` + QR Code Pix do admin do grupo.
+- Group Admin confirma → `CONFIRMED`.
+- Acima do limite → `WAITLIST`.
+- **Admin também é jogador** — se inscreve e paga normalmente.
+- **Fase futura:** webhook automático com split de 5%.
 
-### D. Algoritmo de Sorteio (Core Engine)
-Acionado pelo Gerente; roda no **frontend** e persiste o resultado:
-1. Considera apenas jogadores `CONFIRMED`.
-2. O Gerente define dinamicamente o **número de times**.
-3. Agrupa jogadores por posição (garantindo, ex: 1 goleiro por time).
-4. Dentro de cada grupo de posição, ordena por `globalScore` e aplica **snake draft** para distribuição equilibrada.
-5. Salva o `teamNumber` na `match_registration` de cada jogador.
+### D. Algoritmo de Sorteio
+- Apenas `CONFIRMED`. Snake draft por posição + score. Persiste `teamNumber`.
 
-### E. Avaliação 360° (Pós-Jogo)
-- Após a partida ser marcada como **concluída**, cada jogador avalia os outros (nota de 1 a 5).
-- A média das notas recebidas atualiza o `globalScore` do perfil avaliado.
-- Este score retroalimenta os sorteios futuros.
+### E. Avaliação 360°
+- Pós-partida. Nota 1–5. Atualiza `globalScore`.
 
 ---
 
-## 5. Modelo de Dados (PostgreSQL — Neon)
+## 6. Modelo de Dados
 
 ```sql
 -- Usuários
 users (
-  id            uuid PRIMARY KEY,
-  phoneNumber   text UNIQUE NOT NULL,
-  displayName   text,
-  mainPosition  text CHECK (mainPosition IN ('GOALKEEPER','DEFENSE','ATTACK')),
-  globalScore   numeric DEFAULT 3.0,  -- Média das avaliações recebidas
-  isAdmin       boolean DEFAULT false,
-  pixKey        text,                 -- Chave Pix pessoal do admin (CPF, telefone, email ou chave aleatória)
-  createdAt     timestamptz DEFAULT now()
+  id             uuid PRIMARY KEY,
+  phoneNumber    text UNIQUE,
+  displayName    text,
+  mainPosition   text CHECK (IN 'GOALKEEPER','DEFENSE','ATTACK'),
+  globalScore    numeric DEFAULT 3.0,
+  isSuperAdmin   boolean DEFAULT false,   -- definido manualmente
+  pixKey         text,                    -- chave Pix pessoal
+  createdAt      timestamptz DEFAULT now()
 )
 
--- Partidas
+-- Bolhas (grupos)
+groups (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name             text NOT NULL,
+  inviteToken      text UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex'),
+  inviteExpiresAt  timestamptz,           -- NULL = sem expiração
+  createdAt        timestamptz DEFAULT now()
+)
+
+-- Membros da bolha (many-to-many)
+group_members (
+  id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  groupId   uuid REFERENCES groups(id) ON DELETE CASCADE,
+  userId    uuid REFERENCES users(id) ON DELETE CASCADE,
+  role      text CHECK (role IN ('ADMIN','PLAYER')) DEFAULT 'PLAYER',
+  joinedAt  timestamptz DEFAULT now(),
+  UNIQUE (groupId, userId)
+)
+
+-- Partidas (pertencem a uma bolha)
 matches (
-  id           uuid PRIMARY KEY,
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  groupId      uuid REFERENCES groups(id),
   managerId    uuid REFERENCES users(id),
   title        text,
   scheduledAt  timestamptz,
   maxPlayers   int,
-  price        numeric,  -- Valor da taxa em BRL
-  status       text CHECK (status IN ('OPEN','CLOSED','FINISHED')),
+  price        numeric,
+  status       text CHECK (IN 'OPEN','CLOSED','FINISHED') DEFAULT 'OPEN',
   createdAt    timestamptz DEFAULT now()
 )
 
 -- Inscrições
 match_registrations (
-  id               uuid PRIMARY KEY,
-  matchId          uuid REFERENCES matches(id),
-  userId           uuid REFERENCES users(id),
-  snapshotPosition text,     -- Posição no momento da inscrição
-  snapshotScore    numeric,  -- Score no momento do sorteio
-  status           text CHECK (status IN ('RESERVED','CONFIRMED','WAITLIST')),
-  paymentId        text,     -- ID da transação no provedor de pagamentos
-  teamNumber       int,      -- Preenchido após o sorteio
-  reservedUntil    timestamptz,  -- Expiração da reserva (pay-to-play)
-  createdAt        timestamptz DEFAULT now(),
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  matchId           uuid REFERENCES matches(id) ON DELETE CASCADE,
+  userId            uuid REFERENCES users(id),
+  snapshotPosition  text,
+  snapshotScore     numeric,
+  status            text CHECK (IN 'RESERVED','CONFIRMED','WAITLIST') DEFAULT 'RESERVED',
+  paymentId         text,
+  teamNumber        int,
+  reservedUntil     timestamptz,
+  createdAt         timestamptz DEFAULT now(),
   UNIQUE (matchId, userId)
 )
 
 -- Avaliações
 evaluations (
-  id          uuid PRIMARY KEY,
-  matchId     uuid REFERENCES matches(id),
-  evaluatorId uuid REFERENCES users(id),
-  evaluatedId uuid REFERENCES users(id),
-  scoreGiven  int CHECK (scoreGiven BETWEEN 1 AND 5),
-  createdAt   timestamptz DEFAULT now(),
-  UNIQUE (matchId, evaluatorId, evaluatedId)  -- Um voto por par por partida
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  matchId      uuid REFERENCES matches(id) ON DELETE CASCADE,
+  evaluatorId  uuid REFERENCES users(id),
+  evaluatedId  uuid REFERENCES users(id),
+  scoreGiven   int CHECK (scoreGiven BETWEEN 1 AND 5),
+  createdAt    timestamptz DEFAULT now(),
+  UNIQUE (matchId, evaluatorId, evaluatedId)
 )
 ```
 
 ---
 
-## 6. Regras de Negócio Críticas
+## 7. RLS
 
-- **Sem reembolso:** Nunca implementar funcionalidade de estorno no app.
-- **Confirmação manual (MVP):** O status `CONFIRMED` é atualizado pelo admin via frontend. Regra a ser revertida quando a confirmação automática via webhook for implementada.
-- **Score inicial:** Novos jogadores começam com `globalScore = 3.0` (meio da escala 1–5).
-- **Snake draft:** Dentro de cada grupo de posição, times recebem jogadores em ordem alternada (1, 2, 3 ... N, N, N-1 ... 1) para igualar o nível técnico.
-- **Snapshot no sorteio:** O `snapshotScore` e `snapshotPosition` são gravados no momento do sorteio, preservando o histórico mesmo se o perfil do jogador mudar depois.
-- **Chave Pix do admin:** O campo `pixKey` na tabela `users` armazena a chave Pix pessoal do admin. O QR Code é gerado no frontend usando `qrcode-pix` (payload EMV) + `react-qr-code` (render SVG). Nenhum provedor externo ou CNPJ necessário.
-- **Taxa de plataforma:** 5% do valor da partida. Informativa no MVP. Split (repasse) a implementar via OpenPix/Woovi quando houver MEI/CNPJ.
+| Tabela | Operação | Condição |
+|---|---|---|
+| `users` | SELECT | qualquer autenticado |
+| `users` | UPDATE | próprio `id` |
+| `groups` | SELECT | membro do grupo OR `isSuperAdmin` |
+| `group_members` | SELECT | membro do grupo OR `isSuperAdmin` |
+| `group_members` | INSERT | usuário insere a si mesmo (ao entrar via link) |
+| `matches` | SELECT | membro do `groupId` OR `isSuperAdmin` |
+| `matches` | INSERT | `group_members.role = 'ADMIN'` no `groupId` OR `isSuperAdmin` |
+| `match_registrations` | SELECT | membro do grupo do match OR `isSuperAdmin` |
+| `match_registrations` | INSERT | membro do grupo (qualquer role) |
+| `match_registrations` | UPDATE | próprio `userId` OR admin do grupo OR `isSuperAdmin` |
+
+---
+
+## 8. Regras de Negócio Críticas
+
+- **Sem reembolso:** Nunca implementar estorno no app.
+- **Confirmação manual (MVP):** `CONFIRMED` atualizado pelo Group Admin via frontend.
+- **Elevação de admin:** Apenas via SQL manual — nunca via interface do app.
+- **Score inicial:** `globalScore = 3.0`.
+- **Snake draft:** Distribuição alternada por posição + score.
+- **Pix:** `pixKey` em `users`. QR Code via `qrcode-pix` + `react-qr-code`, 100% frontend.
+- **Taxa de plataforma:** 5% (informativa no MVP). Split futuro via OpenPix/Woovi.
+- **Bolha:** Toda visibilidade escopada ao `groupId`. Sem grupo → tela "Aguardando convite".
+- **Link de convite:** multi-uso, com duração opcional (`inviteExpiresAt`).

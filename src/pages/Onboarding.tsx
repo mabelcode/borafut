@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, Loader2, User, Shield, Sword, Goal } from 'lucide-react'
+import { ArrowRight, Loader2, User, Shield, Sword, Goal, LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 
@@ -51,9 +51,10 @@ function isValidBRCell(digits: string) {
 interface Props {
     session: Session
     onComplete: () => void
+    onSignOut: () => void
 }
 
-export default function Onboarding({ session, onComplete }: Props) {
+export default function Onboarding({ session, onComplete, onSignOut }: Props) {
     const [displayName, setDisplayName] = useState('')
     const [position, setPosition] = useState<Position | null>(null)
     const [phoneDigits, setPhoneDigits] = useState('')
@@ -226,6 +227,15 @@ export default function Onboarding({ session, onComplete }: Props) {
                     )}
                 </button>
             </form>
+
+            {/* Sign out escape hatch */}
+            <button
+                onClick={async () => { await supabase.auth.signOut(); onSignOut() }}
+                className="flex items-center gap-1.5 text-xs text-secondary-text hover:text-brand-red transition-colors duration-150 mx-auto py-1"
+            >
+                <LogOut size={12} />
+                Entrar com outra conta
+            </button>
         </div>
     )
 }

@@ -1,10 +1,11 @@
 -- =====================================================================
--- Borafut — MVP Schema
+-- Borafut — MVP Schema v2 (Groups/Bolhas Architecture)
 -- Migration: 20260222000000_init.sql
+-- Note: All tables are created first, then RLS policies (to avoid
+--       forward-reference errors between tables).
 -- =====================================================================
 
 -- ── 1. USERS ─────────────────────────────────────────────────────────
--- Extends Supabase Auth users. id mirrors auth.users.id.
 
 create table if not exists public.users (
   id             uuid primary key references auth.users (id) on delete cascade,
@@ -12,85 +13,64 @@ create table if not exists public.users (
   "displayName"  text,
   "mainPosition" text check ("mainPosition" in ('GOALKEEPER', 'DEFENSE', 'ATTACK')),
   "globalScore"  numeric default 3.0,
-  "isAdmin"      boolean default false,
+  "isSuperAdmin" boolean default false,
+  "pixKey"       text,
   "createdAt"    timestamptz default now()
 );
 
-alter table public.users enable row level security;
+-- ── 2. GROUPS (BOLHAS) ───────────────────────────────────────────────
 
-create policy "users_select_own" on public.users
-  for select using (auth.uid() = id);
+create table if not exists public.groups (
+  id                uuid primary key default gen_random_uuid(),
+  name              text not null,
+  "inviteToken"     text unique default replace(gen_random_uuid()::text, '-', ''),
+  "inviteExpiresAt" timestamptz,
+  "createdAt"       timestamptz default now()
+);
 
-create policy "users_insert_own" on public.users
-  for insert with check (auth.uid() = id);
+-- ── 3. GROUP MEMBERS ─────────────────────────────────────────────────
 
-create policy "users_update_own" on public.users
-  for update using (auth.uid() = id);
+create table if not exists public.group_members (
+  id         uuid primary key default gen_random_uuid(),
+  "groupId"  uuid references public.groups (id) on delete cascade,
+  "userId"   uuid references public.users (id) on delete cascade,
+  role       text check (role in ('ADMIN', 'PLAYER')) default 'PLAYER',
+  "joinedAt" timestamptz default now(),
+  unique ("groupId", "userId")
+);
 
-
--- ── 2. MATCHES ───────────────────────────────────────────────────────
+-- ── 4. MATCHES ───────────────────────────────────────────────────────
 
 create table if not exists public.matches (
   id            uuid primary key default gen_random_uuid(),
+  "groupId"     uuid references public.groups (id) on delete cascade,
   "managerId"   uuid references public.users (id),
   title         text,
   "scheduledAt" timestamptz,
   "maxPlayers"  int,
-  price         numeric,  -- Valor da taxa em BRL
+  price         numeric,
   status        text default 'OPEN' check (status in ('OPEN', 'CLOSED', 'FINISHED')),
   "createdAt"   timestamptz default now()
 );
 
-alter table public.matches enable row level security;
-
--- Qualquer usuário autenticado pode ver partidas abertas
-create policy "matches_select_all" on public.matches
-  for select using (auth.uid() is not null);
-
--- Só o gerente (admin) pode criar/editar partidas
-create policy "matches_insert_admin" on public.matches
-  for insert with check (
-    exists (select 1 from public.users where id = auth.uid() and "isAdmin" = true)
-  );
-
-create policy "matches_update_manager" on public.matches
-  for update using ("managerId" = auth.uid());
-
-
--- ── 3. MATCH REGISTRATIONS ───────────────────────────────────────────
+-- ── 5. MATCH REGISTRATIONS ───────────────────────────────────────────
 
 create table if not exists public.match_registrations (
-  id                uuid primary key default gen_random_uuid(),
-  "matchId"         uuid references public.matches (id) on delete cascade,
-  "userId"          uuid references public.users (id),
+  id                 uuid primary key default gen_random_uuid(),
+  "matchId"          uuid references public.matches (id) on delete cascade,
+  "userId"           uuid references public.users (id),
   "snapshotPosition" text,
-  "snapshotScore"   numeric,
-  status            text default 'RESERVED'
-                    check (status in ('RESERVED', 'CONFIRMED', 'WAITLIST')),
-  "paymentId"       text,
-  "teamNumber"      int,
-  "reservedUntil"   timestamptz,
-  "createdAt"       timestamptz default now(),
+  "snapshotScore"    numeric,
+  status             text default 'RESERVED'
+                     check (status in ('RESERVED', 'CONFIRMED', 'WAITLIST')),
+  "paymentId"        text,
+  "teamNumber"       int,
+  "reservedUntil"    timestamptz,
+  "createdAt"        timestamptz default now(),
   unique ("matchId", "userId")
 );
 
-alter table public.match_registrations enable row level security;
-
-create policy "registrations_select_all" on public.match_registrations
-  for select using (auth.uid() is not null);
-
--- Usuário só pode inserir sua própria inscrição
-create policy "registrations_insert_own" on public.match_registrations
-  for insert with check ("userId" = auth.uid());
-
--- Status CONFIRMED só pode ser escrito pelo backend (service_role), nunca pelo frontend
--- O frontend pode atualizar apenas teamNumber via update limitado ao próprio userId
--- (sorteio roda no frontend e persiste o teamNumber)
-create policy "registrations_update_own" on public.match_registrations
-  for update using ("userId" = auth.uid());
-
-
--- ── 4. EVALUATIONS ───────────────────────────────────────────────────
+-- ── 6. EVALUATIONS ───────────────────────────────────────────────────
 
 create table if not exists public.evaluations (
   id            uuid primary key default gen_random_uuid(),
@@ -102,12 +82,176 @@ create table if not exists public.evaluations (
   unique ("matchId", "evaluatorId", "evaluatedId")
 );
 
+-- =====================================================================
+-- ENABLE RLS ON ALL TABLES
+-- =====================================================================
+
+alter table public.users enable row level security;
+alter table public.groups enable row level security;
+alter table public.group_members enable row level security;
+alter table public.matches enable row level security;
+alter table public.match_registrations enable row level security;
 alter table public.evaluations enable row level security;
 
--- Cada jogador só vê suas próprias avaliações recebidas/enviadas
+-- =====================================================================
+-- RLS POLICIES
+-- All tables created above so forward-references are safe.
+-- =====================================================================
+
+-- ── users ─────────────────────────────────────────────────────────────
+
+create policy "users_select_authenticated" on public.users
+  for select using (auth.uid() is not null);
+
+create policy "users_insert_own" on public.users
+  for insert with check (auth.uid() = id);
+
+create policy "users_update_own" on public.users
+  for update using (auth.uid() = id);
+
+-- ── groups ────────────────────────────────────────────────────────────
+
+create policy "groups_select" on public.groups
+  for select using (
+    exists (
+      select 1 from public.group_members
+      where "groupId" = groups.id and "userId" = auth.uid()
+    )
+    or exists (
+      select 1 from public.users
+      where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+create policy "groups_insert_superadmin" on public.groups
+  for insert with check (
+    exists (select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true)
+  );
+
+create policy "groups_update_admin" on public.groups
+  for update using (
+    exists (
+      select 1 from public.group_members
+      where "groupId" = groups.id and "userId" = auth.uid() and role = 'ADMIN'
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+-- ── group_members ─────────────────────────────────────────────────────
+
+create policy "group_members_select" on public.group_members
+  for select using (
+    exists (
+      select 1 from public.group_members gm2
+      where gm2."groupId" = group_members."groupId" and gm2."userId" = auth.uid()
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+create policy "group_members_insert_self" on public.group_members
+  for insert with check (
+    "userId" = auth.uid()
+    or exists (select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true)
+  );
+
+create policy "group_members_update_admin" on public.group_members
+  for update using (
+    exists (
+      select 1 from public.group_members gm2
+      where gm2."groupId" = group_members."groupId"
+        and gm2."userId" = auth.uid()
+        and gm2.role = 'ADMIN'
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+-- ── matches ───────────────────────────────────────────────────────────
+
+create policy "matches_select" on public.matches
+  for select using (
+    exists (
+      select 1 from public.group_members
+      where "groupId" = matches."groupId" and "userId" = auth.uid()
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+create policy "matches_insert_admin" on public.matches
+  for insert with check (
+    exists (
+      select 1 from public.group_members
+      where "groupId" = matches."groupId" and "userId" = auth.uid() and role = 'ADMIN'
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+create policy "matches_update_admin" on public.matches
+  for update using (
+    exists (
+      select 1 from public.group_members
+      where "groupId" = matches."groupId" and "userId" = auth.uid() and role = 'ADMIN'
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+-- ── match_registrations ───────────────────────────────────────────────
+
+create policy "registrations_select" on public.match_registrations
+  for select using (
+    exists (
+      select 1 from public.matches m
+      join public.group_members gm on gm."groupId" = m."groupId"
+      where m.id = match_registrations."matchId" and gm."userId" = auth.uid()
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+create policy "registrations_insert_member" on public.match_registrations
+  for insert with check (
+    "userId" = auth.uid()
+    and exists (
+      select 1 from public.matches m
+      join public.group_members gm on gm."groupId" = m."groupId"
+      where m.id = "matchId" and gm."userId" = auth.uid()
+    )
+  );
+
+create policy "registrations_update" on public.match_registrations
+  for update using (
+    "userId" = auth.uid()
+    or exists (
+      select 1 from public.matches m
+      join public.group_members gm on gm."groupId" = m."groupId"
+      where m.id = match_registrations."matchId"
+        and gm."userId" = auth.uid()
+        and gm.role = 'ADMIN'
+    )
+    or exists (
+      select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true
+    )
+  );
+
+-- ── evaluations ───────────────────────────────────────────────────────
+
 create policy "evaluations_select" on public.evaluations
   for select using (
-    auth.uid() = "evaluatorId" or auth.uid() = "evaluatedId"
+    auth.uid() = "evaluatorId"
+    or auth.uid() = "evaluatedId"
+    or exists (select 1 from public.users where id = auth.uid() and "isSuperAdmin" = true)
   );
 
 create policy "evaluations_insert_own" on public.evaluations

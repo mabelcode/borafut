@@ -20,43 +20,44 @@
 | Frontend | Vite + React + TypeScript (strict) |
 | Estilização | Tailwind CSS (v4, CSS-first via `@theme`) |
 | Estado / Cache | TanStack React Query |
-| Banco de Dados | **Supabase** (PostgreSQL + Auth + Realtime + Edge Functions) |
-| Autenticação | **Supabase Auth** — Google OAuth (Social Login) |
-| Pagamentos | **Pix Manual** — QR Code gerado no frontend via `qrcode-pix` + `react-qr-code` |
+| Banco de Dados | **Supabase** (PostgreSQL + Auth + RLS) |
+| Autenticação | **Supabase Auth** — Google OAuth |
+| Pagamentos | **Pix Manual** — `qrcode-pix` + `react-qr-code` (100% frontend) |
+| Observabilidade | **Sentry** — erros, performance e rastreamento de sessão |
+| Testes | **Vitest** (unit) + **Playwright** (integração/e2e) |
 | Ícones | lucide-react |
 | Fonte | Inter (Google Fonts) |
 
-> **Nota sobre Pagamentos (MVP):** Confirmação **manual pelo Group Admin**, sem CNPJ. Admin cadastra chave Pix pessoal. App gera QR Code Pix (payload EMV/BR Code) com valor e nome do jogador. Admin confirma manualmente. Taxa de plataforma de **5%** informativa (sem split por ora). Confirmação automática via webhook (OpenPix/Woovi) fica para fase futura.
+> **Nota sobre Pagamentos (MVP):** Confirmação manual pelo Group Admin, sem CNPJ. Admin cadastra chave Pix pessoal. App gera QR Code Pix estático. Taxa de 5% informativa. Split e webhook automático (OpenPix/Woovi) ficam para fase pós-MEI.
 
 ---
 
 ## 3. Hierarquia de Papéis
 
-A hierarquia é **inclusiva**: cada nível herda as capacidades do nível anterior.
+A hierarquia é **inclusiva**: cada nível herda as capacidades do anterior.
 
 ```
 Super Admin  ⊃  Admin  ⊃  Player
 
-Player      → joga, paga, se inscreve em partidas do seus grupos
-Admin       → tudo do Player + cria partidas, confirma pagamentos, gera link de convite
+Player      → joga, paga, se inscreve em partidas dos seus grupos
+Admin       → tudo do Player + cria partidas, confirma pagamentos,
+              gera link de convite, visualiza membros do grupo
               pode ser Admin em N grupos e Player em outros
-Super Admin → tudo do Admin em TODOS os grupos sem exceção
+Super Admin → tudo do Admin em TODOS os grupos + Painel Super Admin
+              (criar/deletar grupos, gerenciar users, ver histórico)
 ```
 
 ### Implementação dos papéis
 
 ```
 users.isSuperAdmin boolean DEFAULT false
-  └── plataforma (definido MANUALMENTE no banco, nunca via app)
-  └── bypassa toda RLS de grupo — vê e gerencia absolutamente tudo
+  └── plataforma (definido MANUALMENTE via SQL no banco, nunca via app)
+  └── bypassa toda RLS — vê e gerencia absolutamente tudo
 
 group_members.role = 'ADMIN' | 'PLAYER'
-  └── escopo do grupo — um usuário pode ser ADMIN em 10 grupos e PLAYER em outros 20
-  └── ADMIN também definido MANUALMENTE no banco, nunca via app
+  └── escopo do grupo — promovido a ADMIN via Painel Super Admin ou SQL manual
   └── PLAYER é o padrão ao entrar por link de convite
 ```
-
-> **Regra crítica:** Nenhum usuário pode se tornar Admin ou Super Admin pelo app. Toda elevação de privilégio é feita manualmente via SQL/Supabase Dashboard.
 
 ---
 
@@ -64,67 +65,112 @@ group_members.role = 'ADMIN' | 'PLAYER'
 
 - Cada **bolha** é um grupo isolado com seus próprios membros e partidas.
 - Usuários entram via **link de convite** gerado pelo Group Admin:
-  - URL: `borafut.app/join/<inviteToken>` — token opaco de 32 chars hex
-  - O link é **multi-uso** (várias pessoas podem usar o mesmo link simultaneamente)
-  - Admin pode definir uma **duração** para o link (24h, 7 dias, 30 dias, sem expiração)
-  - Admin pode **invalidar** regenerando o token
-  - Na entrada: verifica `inviteExpiresAt IS NULL OR inviteExpiresAt > now()`
-- Partidas pertencem a uma bolha (`matches.groupId`).
-- Toda visibilidade é filtrada por bolha via RLS.
+  - URL: `borafut.app/?token=<inviteToken>` — token hex de 32 chars
+  - Multi-uso; admin define duração (24h / 7d / 30d / sem expiração)
+  - Admin pode invalidar regenerando o token
 - Pós-onboarding sem grupo → tela "Aguardando convite".
+- Toda visibilidade é filtrada por bolha via RLS.
 
 ---
 
 ## 5. Funcionalidades
 
 ### A. Autenticação e Perfil
-- Login via **Google OAuth**.
-- No primeiro acesso: onboarding para **Nome/Apelido**, **Posição** e **WhatsApp**.
-- Pós-onboarding: se veio de `/join/<token>` → entra como PLAYER. Caso contrário → tela "Aguardando convite".
+- Login via **Google OAuth** (Supabase Auth).
+- Onboarding: Nome/Apelido, Posição, WhatsApp.
+- Pós-onboarding: entra no grupo via token ou aguarda convite.
+- Link "Entrar com outra conta" no onboarding (sign out).
 
-### B. Gestão de Partidas
-- Group Admin cria partida no seu grupo: **Data/Hora**, **Limite de Vagas**, **Valor da Taxa**.
+### B. Gestão de Partidas (Group Admin)
+- Admin cria partida no grupo: Data/Hora, Vagas, Valor.
 
 ### C. Pay-to-Play — MVP Manual
-- "Tô Dentro" → `RESERVED` + QR Code Pix do admin do grupo.
-- Group Admin confirma → `CONFIRMED`.
+- "Tô Dentro" → `RESERVED` + QR Code Pix.
+- Admin verifica extrato → clica "Confirmar" → `CONFIRMED`.
 - Acima do limite → `WAITLIST`.
-- **Admin também é jogador** — se inscreve e paga normalmente.
-- **Fase futura:** webhook automático com split de 5%.
+- Admin também é jogador — se inscreve e paga normalmente.
 
 ### D. Algoritmo de Sorteio
-- Apenas `CONFIRMED`. Snake draft por posição + score. Persiste `teamNumber`.
+- Apenas `CONFIRMED`. Snake draft por posição + `globalScore`. Persiste `teamNumber`.
 
-### E. Avaliação 360°
-- Pós-partida. Nota 1–5. Atualiza `globalScore`.
+### E. Avaliação 360° (Pós-Jogo)
+- Nota 1–5. Atualiza `globalScore`.
+
+### F. Painel Super Admin
+Acessível via ícone 🛡 no header da Home (visível apenas para `isSuperAdmin`).
+
+**Tab: Grupos**
+- Listar todos os grupos (nome, nº de membros, data de criação)
+- Criar novo grupo (apenas nome; token gerado automaticamente)
+- Acessar grupo → ver membros com roles
+- Promover/rebaixar usuário dentro de um grupo
+- Adicionar usuário a um grupo
+- **Deletar grupo** (soft/hard delete a definir)
+
+**Tab: Usuários**
+- Listar todos os usuários (nome, posição, grupos que participa)
+- Busca por nome
+- Ver detalhes de um usuário: grupos, role em cada grupo, histórico
+- Promover a Admin de um grupo específico
+- **Deletar usuário** (remove do auth + public.users em cascata)
+
+**Tab: Histórico**
+- Log de ações relevantes: quem confirmou pagamento, quem criou/deletou grupo, quem promoveu user, etc.
+- Timestamp + usuário responsável + descrição da ação
+- Implementado via tabela `audit_log` no banco
 
 ---
 
-## 6. Modelo de Dados
+## 6. Observabilidade — Sentry
+
+- **Instalação:** `@sentry/react` + `@sentry/vite-plugin`
+- **Inicialização:** em `main.tsx` via `Sentry.init()`
+- **Captura automática:** erros de runtime React, performance (Web Vitals), replays
+- **Captura manual:** `Sentry.captureException(error)` em blocos `catch` críticos (Supabase, pagamento, sorteio)
+- **Identificação de usuário:** `Sentry.setUser({ id, email })` após autenticação
+
+---
+
+## 7. Testes
+
+### Unitários — Vitest
+- Funções puras: algoritmo de sorteio (snake draft), formatação de moeda, validação de Pix key, parsing de datas
+- Hooks: `useCurrentUser`, `useMatches` (com mock do Supabase client)
+- Arquivo de configuração: `vitest.config.ts`
+
+### Integração/E2E — Playwright
+- Fluxo de login (Google OAuth mockado)
+- Fluxo de onboarding
+- Reserva de vaga + QR Code
+- Confirmação de pagamento pelo admin
+- Criação de partida
+- Entrada via link de convite
+- Painel Super Admin: criar grupo, promover usuário
+
+---
+
+## 8. Modelo de Dados
 
 ```sql
--- Usuários
 users (
   id             uuid PRIMARY KEY,
   phoneNumber    text UNIQUE,
   displayName    text,
   mainPosition   text CHECK (IN 'GOALKEEPER','DEFENSE','ATTACK'),
   globalScore    numeric DEFAULT 3.0,
-  isSuperAdmin   boolean DEFAULT false,   -- definido manualmente
-  pixKey         text,                    -- chave Pix pessoal
+  isSuperAdmin   boolean DEFAULT false,
+  pixKey         text,
   createdAt      timestamptz DEFAULT now()
 )
 
--- Bolhas (grupos)
 groups (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name             text NOT NULL,
-  inviteToken      text UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex'),
-  inviteExpiresAt  timestamptz,           -- NULL = sem expiração
+  inviteToken      text UNIQUE DEFAULT replace(gen_random_uuid()::text, '-', ''),
+  inviteExpiresAt  timestamptz,
   createdAt        timestamptz DEFAULT now()
 )
 
--- Membros da bolha (many-to-many)
 group_members (
   id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   groupId   uuid REFERENCES groups(id) ON DELETE CASCADE,
@@ -134,9 +180,8 @@ group_members (
   UNIQUE (groupId, userId)
 )
 
--- Partidas (pertencem a uma bolha)
 matches (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id           uuid PRIMARY KEY,
   groupId      uuid REFERENCES groups(id),
   managerId    uuid REFERENCES users(id),
   title        text,
@@ -147,60 +192,61 @@ matches (
   createdAt    timestamptz DEFAULT now()
 )
 
--- Inscrições
 match_registrations (
-  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  matchId           uuid REFERENCES matches(id) ON DELETE CASCADE,
-  userId            uuid REFERENCES users(id),
-  snapshotPosition  text,
-  snapshotScore     numeric,
-  status            text CHECK (IN 'RESERVED','CONFIRMED','WAITLIST') DEFAULT 'RESERVED',
-  paymentId         text,
-  teamNumber        int,
-  reservedUntil     timestamptz,
-  createdAt         timestamptz DEFAULT now(),
-  UNIQUE (matchId, userId)
+  id, matchId, userId, snapshotPosition, snapshotScore,
+  status CHECK (IN 'RESERVED','CONFIRMED','WAITLIST'),
+  paymentId, teamNumber, reservedUntil, createdAt
 )
 
--- Avaliações
 evaluations (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  matchId      uuid REFERENCES matches(id) ON DELETE CASCADE,
-  evaluatorId  uuid REFERENCES users(id),
-  evaluatedId  uuid REFERENCES users(id),
-  scoreGiven   int CHECK (scoreGiven BETWEEN 1 AND 5),
-  createdAt    timestamptz DEFAULT now(),
-  UNIQUE (matchId, evaluatorId, evaluatedId)
+  id, matchId, evaluatorId, evaluatedId,
+  scoreGiven CHECK (1-5), createdAt
+)
+
+-- Fase futura (MVP avançado)
+audit_log (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  actorId     uuid REFERENCES users(id),
+  action      text NOT NULL,   -- ex: 'CONFIRM_PAYMENT', 'CREATE_GROUP', 'PROMOTE_ADMIN'
+  targetType  text,            -- 'user' | 'group' | 'match' | 'registration'
+  targetId    uuid,
+  metadata    jsonb,
+  createdAt   timestamptz DEFAULT now()
 )
 ```
 
 ---
 
-## 7. RLS
+## 9. RLS
 
 | Tabela | Operação | Condição |
 |---|---|---|
 | `users` | SELECT | qualquer autenticado |
 | `users` | UPDATE | próprio `id` |
 | `groups` | SELECT | membro do grupo OR `isSuperAdmin` |
+| `groups` | INSERT/UPDATE | `isSuperAdmin` OR group admin |
 | `group_members` | SELECT | membro do grupo OR `isSuperAdmin` |
-| `group_members` | INSERT | usuário insere a si mesmo (ao entrar via link) |
+| `group_members` | INSERT | próprio `userId` OR `isSuperAdmin` |
+| `group_members` | UPDATE | group admin OR `isSuperAdmin` |
 | `matches` | SELECT | membro do `groupId` OR `isSuperAdmin` |
-| `matches` | INSERT | `group_members.role = 'ADMIN'` no `groupId` OR `isSuperAdmin` |
-| `match_registrations` | SELECT | membro do grupo do match OR `isSuperAdmin` |
-| `match_registrations` | INSERT | membro do grupo (qualquer role) |
-| `match_registrations` | UPDATE | próprio `userId` OR admin do grupo OR `isSuperAdmin` |
+| `matches` | INSERT/UPDATE | group admin OR `isSuperAdmin` |
+| `match_registrations` | SELECT | membro do grupo |
+| `match_registrations` | INSERT | membro do grupo |
+| `match_registrations` | UPDATE | próprio OR group admin OR `isSuperAdmin` |
 
 ---
 
-## 8. Regras de Negócio Críticas
+## 10. Regras de Negócio Críticas
 
 - **Sem reembolso:** Nunca implementar estorno no app.
-- **Confirmação manual (MVP):** `CONFIRMED` atualizado pelo Group Admin via frontend.
-- **Elevação de admin:** Apenas via SQL manual — nunca via interface do app.
+- **Confirmação manual (MVP):** `CONFIRMED` via frontend pelo Group Admin.
+- **Elevação de admin por SQL:** `isSuperAdmin` sempre via SQL manual. `ADMIN` em grupos via Painel Super Admin ou SQL.
 - **Score inicial:** `globalScore = 3.0`.
 - **Snake draft:** Distribuição alternada por posição + score.
-- **Pix:** `pixKey` em `users`. QR Code via `qrcode-pix` + `react-qr-code`, 100% frontend.
-- **Taxa de plataforma:** 5% (informativa no MVP). Split futuro via OpenPix/Woovi.
-- **Bolha:** Toda visibilidade escopada ao `groupId`. Sem grupo → tela "Aguardando convite".
-- **Link de convite:** multi-uso, com duração opcional (`inviteExpiresAt`).
+- **Snapshot:** `snapshotScore` e `snapshotPosition` preservam histórico ao sortear.
+- **Pix:** `pixKey` em `users`. QR Code 100% frontend via `qrcode-pix` + `react-qr-code`.
+- **Taxa:** 5% informativa no MVP.
+- **Bolha:** visibilidade escopada ao `groupId`. Sem grupo → tela "Aguardando convite".
+- **Link de convite:** multi-uso, duração opcional via `inviteExpiresAt`.
+- **Sentry:** todo `catch` de operação crítica deve chamar `Sentry.captureException()`.
+- **Grants explícitos:** tabelas criadas via migration exigem `GRANT` explícito ao role `authenticated` (não é automático como no Dashboard).

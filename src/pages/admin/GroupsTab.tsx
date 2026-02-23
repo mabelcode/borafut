@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { FolderKanban, Plus, Loader2, Search, ArrowRight } from 'lucide-react'
+import { FolderKanban, Plus, Loader2, Search, ArrowRight, Edit2, Trash2, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { logger } from '@/lib/logger'
 import * as Sentry from '@sentry/react'
+import GroupDetailsView from './GroupDetailsView'
 
 export default function GroupsTab() {
     const [groups, setGroups] = useState<any[]>([])
@@ -11,6 +13,15 @@ export default function GroupsTab() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [newGroupName, setNewGroupName] = useState('')
     const [creating, setCreating] = useState(false)
+    const [editingGroup, setEditingGroup] = useState<any>(null)
+    const [deletingGroup, setDeletingGroup] = useState<any>(null)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [editName, setEditName] = useState('')
+    const [isUpdating, setIsUpdating] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+    const { user } = useCurrentUser()
 
     async function fetchGroups() {
         try {
@@ -52,6 +63,7 @@ export default function GroupsTab() {
 
             // Log audit
             await supabase.from('audit_log').insert({
+                actorId: user?.id,
                 action: 'CREATE_GROUP',
                 targetType: 'group',
                 targetId: data.id,
@@ -69,9 +81,80 @@ export default function GroupsTab() {
         }
     }
 
+    async function handleUpdateGroup(e: React.FormEvent) {
+        e.preventDefault()
+        if (!editingGroup || !editName.trim()) return
+
+        try {
+            setIsUpdating(true)
+            const { error } = await supabase
+                .from('groups')
+                .update({ name: editName.trim() })
+                .eq('id', editingGroup.id)
+
+            if (error) throw error
+
+            logger.info('Grupo atualizado pelo Super Admin', { groupId: editingGroup.id, oldName: editingGroup.name, newName: editName.trim() })
+
+            await supabase.from('audit_log').insert({
+                actorId: user?.id,
+                action: 'UPDATE_GROUP',
+                targetType: 'group',
+                targetId: editingGroup.id,
+                metadata: { oldName: editingGroup.name, newName: editName.trim() }
+            })
+
+            setIsEditModalOpen(false)
+            setEditingGroup(null)
+            fetchGroups()
+        } catch (err) {
+            logger.error('Erro ao atualizar grupo', err)
+            Sentry.captureException(err)
+        } finally {
+            setIsUpdating(false)
+        }
+    }
+
+    async function handleDeleteGroup() {
+        if (!deletingGroup) return
+
+        try {
+            setIsDeleting(true)
+            const { error } = await supabase
+                .from('groups')
+                .delete()
+                .eq('id', deletingGroup.id)
+
+            if (error) throw error
+
+            logger.info('Grupo removido pelo Super Admin', { groupId: deletingGroup.id, name: deletingGroup.name })
+
+            await supabase.from('audit_log').insert({
+                actorId: user?.id,
+                action: 'DELETE_GROUP',
+                targetType: 'group',
+                targetId: deletingGroup.id,
+                metadata: { name: deletingGroup.name }
+            })
+
+            setIsDeleteModalOpen(false)
+            setDeletingGroup(null)
+            fetchGroups()
+        } catch (err) {
+            logger.error('Erro ao excluir grupo', err)
+            Sentry.captureException(err)
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
     const filteredGroups = groups.filter(g =>
         g.name.toLowerCase().includes(search.toLowerCase())
     )
+
+    if (selectedGroupId) {
+        return <GroupDetailsView groupId={selectedGroupId} onBack={() => setSelectedGroupId(null)} />
+    }
 
     return (
         <div className="p-4 flex flex-col gap-4">
@@ -114,9 +197,35 @@ export default function GroupsTab() {
                                         {group.group_members?.[0]?.count || 0} Membros
                                     </p>
                                 </div>
-                                <button className="text-brand-green p-1 hover:bg-brand-green/5 rounded-lg transition-colors">
-                                    <ArrowRight size={18} />
-                                </button>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => {
+                                            setEditingGroup(group)
+                                            setEditName(group.name)
+                                            setIsEditModalOpen(true)
+                                        }}
+                                        className="text-secondary-text p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                                        title="Editar nome"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setDeletingGroup(group)
+                                            setIsDeleteModalOpen(true)
+                                        }}
+                                        className="text-brand-red p-2 hover:bg-brand-red/5 rounded-xl transition-colors"
+                                        title="Excluir grupo"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedGroupId(group.id)}
+                                        className="text-brand-green p-2 hover:bg-brand-green/5 rounded-xl transition-colors"
+                                    >
+                                        <ArrowRight size={18} />
+                                    </button>
+                                </div>
                             </div>
                             <div className="flex items-center gap-2 mt-2">
                                 <span className="text-[10px] bg-gray-50 text-secondary-text px-2 py-0.5 rounded-full border border-gray-100">
@@ -185,6 +294,110 @@ export default function GroupsTab() {
                             </div>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* Edit Group Modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                    <div
+                        className="absolute inset-0 bg-primary-text/40 backdrop-blur-md animate-fade-in"
+                        onClick={() => !isUpdating && setIsEditModalOpen(false)}
+                    />
+                    <form
+                        onSubmit={handleUpdateGroup}
+                        className="relative bg-surface w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-spring-up border border-gray-100"
+                    >
+                        <div className="p-8 flex flex-col gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="size-12 rounded-2xl bg-brand-green/10 text-brand-green flex items-center justify-center shrink-0">
+                                    <Edit2 size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-primary-text">Editar Grupo</h2>
+                                    <p className="text-sm text-secondary-text">Altere o nome da bolha</p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[10px] font-bold text-secondary-text uppercase tracking-widest ml-1">Nome do Grupo</label>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    required
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-base font-medium focus:outline-none focus:ring-4 focus:ring-brand-green/10 focus:border-brand-green focus:bg-white transition-all"
+                                />
+                            </div>
+
+                            <div className="flex gap-3 mt-2">
+                                <button
+                                    type="button"
+                                    disabled={isUpdating}
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    className="flex-1 py-4 text-sm font-bold text-secondary-text hover:bg-gray-50 rounded-2xl transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isUpdating || !editName.trim() || editName === editingGroup?.name}
+                                    className="flex-1 py-4 bg-brand-green text-white text-sm font-bold rounded-2xl shadow-lg shadow-brand-green/20 flex items-center justify-center gap-2 hover:brightness-105 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                                >
+                                    {isUpdating ? <Loader2 size={18} className="animate-spin" /> : 'Salvar Alterações'}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                    <div
+                        className="absolute inset-0 bg-primary-text/40 backdrop-blur-md animate-fade-in"
+                        onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
+                    />
+                    <div className="relative bg-surface w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-spring-up border border-gray-100">
+                        <div className="p-8 flex flex-col gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="size-12 rounded-2xl bg-brand-red/10 text-brand-red flex items-center justify-center shrink-0">
+                                    <AlertTriangle size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-primary-text">Excluir Grupo</h2>
+                                    <p className="text-sm text-secondary-text">Esta ação não pode ser desfeita</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-brand-red/5 p-4 rounded-2xl border border-brand-red/10">
+                                <p className="text-sm text-brand-red leading-relaxed">
+                                    Você está prestes a excluir o grupo <strong>{deletingGroup?.name}</strong>.
+                                    Os membros serão desassociados, mas suas contas não serão excluídas.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3 mt-2">
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={() => setIsDeleteModalOpen(false)}
+                                    className="flex-1 py-4 text-sm font-bold text-secondary-text hover:bg-gray-50 rounded-2xl transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleDeleteGroup}
+                                    disabled={isDeleting}
+                                    className="flex-1 py-4 bg-brand-red text-white text-sm font-bold rounded-2xl shadow-lg shadow-brand-red/20 flex items-center justify-center gap-2 hover:brightness-105 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                                >
+                                    {isDeleting ? <Loader2 size={18} className="animate-spin" /> : 'Sim, Excluir'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

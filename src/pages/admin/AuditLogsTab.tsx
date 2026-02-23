@@ -41,6 +41,7 @@ export default function AuditLogsTab() {
             PROMOTE_ADMIN: 'Promoveu a Admin',
             DEMOTE_PLAYER: 'Rebaixou a Jogador',
             CONFIRM_PAYMENT: 'Confirmou pagamento',
+            UPDATE_GROUP: 'Atualizou um grupo',
         }
         return actions[action] || action
     }

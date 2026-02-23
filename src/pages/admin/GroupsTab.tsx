@@ -133,25 +133,28 @@ export default function GroupsTab() {
 
             {/* New Group Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-primary-text/20 backdrop-blur-sm" onClick={() => !creating && setIsModalOpen(false)} />
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                    <div
+                        className="absolute inset-0 bg-primary-text/40 backdrop-blur-md animate-fade-in"
+                        onClick={() => !creating && setIsModalOpen(false)}
+                    />
                     <form
                         onSubmit={handleCreateGroup}
-                        className="relative bg-surface w-full max-w-sm rounded-3xl shadow-xl overflow-hidden animate-spring-up"
+                        className="relative bg-surface w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-spring-up border border-gray-100"
                     >
-                        <div className="p-6 flex flex-col gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="size-10 rounded-xl bg-brand-green/10 text-brand-green flex items-center justify-center">
-                                    <FolderKanban size={20} />
+                        <div className="p-8 flex flex-col gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="size-12 rounded-2xl bg-brand-green/10 text-brand-green flex items-center justify-center shrink-0">
+                                    <FolderKanban size={24} />
                                 </div>
                                 <div>
-                                    <h2 className="font-bold text-primary-text">Novo Grupo</h2>
-                                    <p className="text-xs text-secondary-text">Crie uma nova bolha de jogadores</p>
+                                    <h2 className="text-xl font-bold text-primary-text">Novo Grupo</h2>
+                                    <p className="text-sm text-secondary-text">Crie uma nova bolha de jogadores</p>
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold text-secondary-text uppercase tracking-wider ml-1">Nome do Grupo</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[10px] font-bold text-secondary-text uppercase tracking-widest ml-1">Nome do Grupo</label>
                                 <input
                                     autoFocus
                                     type="text"
@@ -159,7 +162,7 @@ export default function GroupsTab() {
                                     placeholder="Ex: Pelada dos Amigos"
                                     value={newGroupName}
                                     onChange={(e) => setNewGroupName(e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-base font-medium focus:outline-none focus:ring-4 focus:ring-brand-green/10 focus:border-brand-green focus:bg-white transition-all"
                                 />
                             </div>
 
@@ -168,16 +171,16 @@ export default function GroupsTab() {
                                     type="button"
                                     disabled={creating}
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 py-3 text-sm font-bold text-secondary-text hover:bg-gray-50 rounded-2xl transition-all"
+                                    className="flex-1 py-4 text-sm font-bold text-secondary-text hover:bg-gray-50 rounded-2xl transition-all"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={creating || !newGroupName.trim()}
-                                    className="flex-1 py-3 bg-brand-green text-white text-sm font-bold rounded-2xl shadow-lg shadow-brand-green/20 flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                                    className="flex-1 py-4 bg-brand-green text-white text-sm font-bold rounded-2xl shadow-lg shadow-brand-green/20 flex items-center justify-center gap-2 hover:brightness-105 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
                                 >
-                                    {creating ? <Loader2 size={16} className="animate-spin" /> : 'Criar Grupo'}
+                                    {creating ? <Loader2 size={18} className="animate-spin" /> : 'Criar Grupo'}
                                 </button>
                             </div>
                         </div>

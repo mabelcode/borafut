@@ -1,17 +1,13 @@
 import { useState } from 'react'
-import { ArrowLeft, Users, FolderKanban, History, ShieldAlert } from 'lucide-react'
+import { Users, FolderKanban, History } from 'lucide-react'
 import GroupsTab from '@/pages/admin/GroupsTab'
 import UsersTab from '@/pages/admin/UsersTab'
 import AuditLogsTab from '@/pages/admin/AuditLogsTab'
 import { logger } from '@/lib/logger'
 
-interface Props {
-    onBack: () => void
-}
-
 type Tab = 'groups' | 'users' | 'logs'
 
-export default function SuperAdmin({ onBack }: Props) {
+export default function SuperAdmin() {
     const [activeTab, setActiveTab] = useState<Tab>('groups')
 
     const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -21,24 +17,7 @@ export default function SuperAdmin({ onBack }: Props) {
     ]
 
     return (
-        <div className="min-h-screen bg-background flex flex-col pb-20 animate-fade-in">
-            {/* Header */}
-            <header className="sticky top-0 z-10 bg-surface/80 backdrop-blur-md border-b border-gray-100 p-4">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={onBack}
-                        className="size-10 flex items-center justify-center rounded-xl hover:bg-gray-100 text-secondary-text transition-colors"
-                    >
-                        <ArrowLeft size={20} />
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-bold text-primary-text flex items-center gap-2">
-                            Painel Super Admin <ShieldAlert size={18} className="text-brand-red" />
-                        </h1>
-                        <p className="text-xs text-secondary-text">Gerenciamento global da plataforma</p>
-                    </div>
-                </div>
-            </header>
+        <div className="flex flex-col animate-fade-in">
 
             {/* Tab Bar */}
             <div className="flex border-b border-gray-100 bg-surface">

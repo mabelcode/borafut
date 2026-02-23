@@ -56,6 +56,19 @@ function clearTokenFromUrl() {
   window.history.replaceState({}, '', url.toString())
 }
 
+const STATE_TITLES: Record<AppState, string | undefined> = {
+  'home': 'Partidas',
+  'super-admin': 'Painel Super Admin',
+  'create-match': 'Nova Partida',
+  'match-detail': 'Detalhes da Partida',
+  'admin-settings': 'Configurações do Grupo',
+  'waiting-for-invite': 'Início',
+  'join-group': 'Entrar no Grupo',
+  'loading': undefined,
+  'login': undefined,
+  'onboarding': 'Seja bem-vindo',
+}
+
 // Inner component that has access to useCurrentUser
 function AppInner({
   session,
@@ -70,20 +83,41 @@ function AppInner({
   const [appState, setAppState] = useState<AppState>(initialAppState)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
 
-  // Once user data loads, route correctly
+  // Once user data loads, route correctly if not already on a specific page
   useEffect(() => {
     if (loading) return
-    if (appState !== 'loading') return // already routed
 
-    if (inviteToken) {
-      logger.debug('Invite token detected', { inviteToken })
-      setAppState('join-group')
-    } else if (groups.length === 0) {
-      setAppState('waiting-for-invite')
-    } else {
-      setAppState('home')
+    // Read page from URL
+    const params = new URLSearchParams(window.location.search)
+    const pageFromUrl = params.get('page') as AppState
+
+    if (appState === 'loading') {
+      if (inviteToken) {
+        logger.debug('Invite token detected', { inviteToken })
+        setAppState('join-group')
+      } else if (pageFromUrl && STATE_TITLES[pageFromUrl]) {
+        // Allow restoring state from URL if valid
+        setAppState(pageFromUrl)
+      } else if (groups.length === 0) {
+        setAppState('waiting-for-invite')
+      } else {
+        setAppState('home')
+      }
     }
   }, [loading, groups, inviteToken, appState])
+
+  // Sync URL with appState
+  useEffect(() => {
+    if (appState === 'loading' || appState === 'login' || appState === 'onboarding') return
+
+    const url = new URL(window.location.href)
+    if (appState === 'home') {
+      url.searchParams.delete('page')
+    } else {
+      url.searchParams.set('page', appState)
+    }
+    window.history.replaceState({}, '', url.toString())
+  }, [appState])
 
   // If still loading initial state
   if (loading && appState === 'loading') {
@@ -97,11 +131,9 @@ function AppInner({
   // Admin's active group for CreateMatch + AdminSettings
   const activeAdminGroupId = adminGroups[0]?.groupId ?? groups[0]?.groupId ?? ''
 
-  // Match detail: determine if user is admin in the match's group
-  // (passed from Home → App → MatchDetail via session + group membership check inside MatchDetail)
-
   return (
     <Layout
+      title={STATE_TITLES[appState]}
       user={user}
       onSignOut={async () => {
         await supabase.auth.signOut()
@@ -142,7 +174,7 @@ function AppInner({
 
       {appState === 'super-admin' && (
         user?.isSuperAdmin ? (
-          <SuperAdmin onBack={() => setAppState('home')} />
+          <SuperAdmin />
         ) : (
           <Home
             onCreateMatch={() => setAppState('create-match')}

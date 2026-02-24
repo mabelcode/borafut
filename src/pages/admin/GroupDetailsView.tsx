@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ArrowLeft, Users, Shield, User, Loader2, Star, Calendar, Hash, Key, Share2, Check, UserPlus, Search, X } from 'lucide-react'
+import { ArrowLeft, Users, Shield, User, Loader2, Star, Calendar, Share2, Check, UserPlus, Search, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -347,72 +347,40 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
             </div>
 
             <div className="p-4 flex flex-col gap-6">
-                {/* Info Cards */}
-                <div className="grid grid-cols-1 gap-3">
-                    <div className="bg-surface border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
-                        <h3 className="text-[10px] font-bold text-secondary-text uppercase tracking-widest flex items-center gap-1.5">
-                            <Hash size={12} className="text-brand-green" /> Identificação e Acesso
-                        </h3>
-                        <div className="flex flex-col gap-3 mt-1">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[9px] text-secondary-text font-semibold uppercase tracking-tighter">ID do Grupo</label>
-                                <code className="text-[11px] bg-gray-50 p-2 rounded-lg border border-gray-100 text-primary-text font-mono break-all leading-tight">
-                                    {group.id}
-                                </code>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[9px] text-secondary-text font-semibold uppercase tracking-tighter">Token de Convite</label>
-                                <div className="flex items-center gap-2">
-                                    <code className="flex-1 text-[11px] bg-brand-green/5 p-2 rounded-lg border border-brand-green/10 text-brand-green font-bold font-mono">
-                                        {group.inviteToken}
-                                    </code>
-                                    <button
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(group.inviteToken)
-                                            logger.info('Token copiado')
-                                        }}
-                                        className="p-2 bg-gray-50 border border-gray-100 rounded-lg text-secondary-text active:scale-95 transition-all"
-                                    >
-                                        <Key size={14} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleShare}
-                                className="w-full mt-2 bg-brand-green text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 hover:brightness-105 hover:scale-[1.01] active:scale-95 transition-all"
-                            >
-                                {copied ? (
-                                    <>
-                                        <Check size={20} />
-                                        Link Copiado!
-                                    </>
-                                ) : (
-                                    <>
-                                        <Share2 size={20} />
-                                        Compartilhar Convite
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Members List */}
                 <div className="flex flex-col gap-4">
                     <div className="px-1">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-bold text-primary-text">Integrantes</h3>
-                            <button
-                                onClick={() => {
-                                    setIsAddingMember(true)
-                                    setAddedInSession([])
-                                }}
-                                className="bg-brand-green/10 text-brand-green px-3 py-2 rounded-xl flex items-center gap-1.5 text-[10px] font-bold hover:bg-brand-green/20 transition-all active:scale-95 border border-brand-green/10"
-                            >
-                                <UserPlus size={14} />
-                                ADICIONAR
-                            </button>
+                            <div className="flex items-center gap-2 relative">
+                                {copied && (
+                                    <div className="absolute right-0 -top-8 bg-brand-green text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300 flex items-center gap-1.5 whitespace-nowrap z-20">
+                                        <Check size={12} />
+                                        Link copiado! Mande para quem quiser
+                                    </div>
+                                )}
+                                <button
+                                    onClick={handleShare}
+                                    title="Compartilhar Convite"
+                                    className={`size-10 flex items-center justify-center rounded-xl transition-all active:scale-95 border shadow-sm cursor-pointer ${copied
+                                        ? 'bg-brand-green text-white border-brand-green shadow-brand-green/20'
+                                        : 'bg-white text-secondary-text border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:text-primary-text'
+                                        }`}
+                                >
+                                    {copied ? <Check size={18} /> : <Share2 size={18} />}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsAddingMember(true)
+                                        setAddedInSession([])
+                                    }}
+                                    className="bg-brand-green/10 text-brand-green px-3 py-2 h-10 rounded-xl flex items-center gap-1.5 text-[10px] font-bold hover:bg-brand-green/20 transition-all active:scale-95 border border-brand-green/10 shadow-sm cursor-pointer"
+                                >
+                                    <UserPlus size={14} />
+                                    ADICIONAR
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none custom-scrollbar-hidden">

@@ -7,7 +7,11 @@ import { logger } from '@/lib/logger'
 
 type Tab = 'groups' | 'users' | 'logs'
 
-export default function SuperAdmin() {
+interface Props {
+    onSelectGroup: (groupId: string) => void
+}
+
+export default function SuperAdmin({ onSelectGroup }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('groups')
 
     const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -46,7 +50,7 @@ export default function SuperAdmin() {
 
             {/* Content */}
             <main className="flex-1 overflow-y-auto">
-                {activeTab === 'groups' && <GroupsTab />}
+                {activeTab === 'groups' && <GroupsTab onSelectGroup={onSelectGroup} />}
                 {activeTab === 'users' && <UsersTab />}
                 {activeTab === 'logs' && <AuditLogsTab />}
             </main>

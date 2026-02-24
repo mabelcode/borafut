@@ -12,6 +12,7 @@ import AdminSettings from '@/pages/AdminSettings'
 import WaitingForInvite from '@/pages/WaitingForInvite'
 import JoinGroup from '@/pages/JoinGroup'
 import SuperAdmin from './pages/SuperAdmin'
+import GroupDetailsView from './pages/admin/GroupDetailsView'
 import Layout from '@/components/Layout'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
@@ -43,6 +44,7 @@ type AppState =
   | 'match-detail'
   | 'admin-settings'
   | 'super-admin'
+  | 'super-admin-group'
 
 /** Reads ?token= from the current URL without changing history */
 function getInviteToken(): string | null {
@@ -59,6 +61,7 @@ function clearTokenFromUrl() {
 const STATE_TITLES: Record<AppState, string | undefined> = {
   'home': 'Partidas',
   'super-admin': 'Painel Super Admin',
+  'super-admin-group': 'Detalhes do Grupo',
   'create-match': 'Nova Partida',
   'match-detail': 'Detalhes da Partida',
   'admin-settings': 'Configurações do Grupo',
@@ -82,6 +85,7 @@ function AppInner({
   const { user, groups, isAdminInAnyGroup, adminGroups, loading, refetch } = useCurrentUser()
   const [appState, setAppState] = useState<AppState>(initialAppState)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
 
   // Once user data loads, route correctly if not already on a specific page
   useEffect(() => {
@@ -97,7 +101,17 @@ function AppInner({
         setAppState('join-group')
       } else if (pageFromUrl && STATE_TITLES[pageFromUrl]) {
         // Allow restoring state from URL if valid
-        setAppState(pageFromUrl)
+        if (pageFromUrl === 'super-admin-group') {
+          const groupId = params.get('groupId')
+          if (groupId) {
+            setSelectedGroupId(groupId)
+            setAppState('super-admin-group')
+          } else {
+            setAppState('super-admin')
+          }
+        } else {
+          setAppState(pageFromUrl)
+        }
       } else if (groups.length === 0) {
         setAppState('waiting-for-invite')
       } else {
@@ -113,8 +127,14 @@ function AppInner({
     const url = new URL(window.location.href)
     if (appState === 'home') {
       url.searchParams.delete('page')
+      url.searchParams.delete('groupId')
     } else {
       url.searchParams.set('page', appState)
+      if (appState === 'super-admin-group' && selectedGroupId) {
+        url.searchParams.set('groupId', selectedGroupId)
+      } else {
+        url.searchParams.delete('groupId')
+      }
     }
     window.history.replaceState({}, '', url.toString())
   }, [appState])
@@ -175,7 +195,12 @@ function AppInner({
 
       {appState === 'super-admin' && (
         user?.isSuperAdmin ? (
-          <SuperAdmin />
+          <SuperAdmin
+            onSelectGroup={(id) => {
+              setSelectedGroupId(id)
+              setAppState('super-admin-group')
+            }}
+          />
         ) : (
           <Home
             onCreateMatch={() => setAppState('create-match')}
@@ -183,6 +208,13 @@ function AppInner({
             onSettings={() => setAppState('admin-settings')}
           />
         )
+      )}
+
+      {appState === 'super-admin-group' && selectedGroupId && user?.isSuperAdmin && (
+        <GroupDetailsView
+          groupId={selectedGroupId}
+          onBack={() => setAppState('super-admin')}
+        />
       )}
 
       {appState === 'create-match' && (

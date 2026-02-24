@@ -4,9 +4,12 @@ import { supabase } from '@/lib/supabase'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { logger } from '@/lib/logger'
 import * as Sentry from '@sentry/react'
-import GroupDetailsView from './GroupDetailsView'
 
-export default function GroupsTab() {
+interface Props {
+    onSelectGroup: (groupId: string) => void
+}
+
+export default function GroupsTab({ onSelectGroup }: Props) {
     const [groups, setGroups] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
@@ -20,7 +23,6 @@ export default function GroupsTab() {
     const [editName, setEditName] = useState('')
     const [isUpdating, setIsUpdating] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
-    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
     const { user } = useCurrentUser()
 
     async function fetchGroups() {
@@ -152,10 +154,6 @@ export default function GroupsTab() {
         g.name.toLowerCase().includes(search.toLowerCase())
     )
 
-    if (selectedGroupId) {
-        return <GroupDetailsView groupId={selectedGroupId} onBack={() => setSelectedGroupId(null)} />
-    }
-
     return (
         <div className="p-4 flex flex-col gap-4">
             {/* Search & Add */}
@@ -220,7 +218,7 @@ export default function GroupsTab() {
                                         <Trash2 size={16} />
                                     </button>
                                     <button
-                                        onClick={() => setSelectedGroupId(group.id)}
+                                        onClick={() => onSelectGroup(group.id)}
                                         className="text-brand-green p-2 hover:bg-brand-green/5 rounded-xl transition-colors"
                                     >
                                         <ArrowRight size={18} />

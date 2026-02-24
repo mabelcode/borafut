@@ -234,8 +234,8 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                     onClick={handleUpdateProfile}
                                     disabled={saving || !hasChanges}
                                     className={`w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${hasChanges && !saving
-                                            ? 'bg-primary-text text-white hover:brightness-110 active:scale-95 shadow-lg'
-                                            : 'bg-gray-100 text-secondary-text cursor-not-allowed'
+                                        ? 'bg-primary-text text-white hover:brightness-110 active:scale-95 shadow-lg'
+                                        : 'bg-gray-100 text-secondary-text cursor-not-allowed'
                                         }`}
                                 >
                                     {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}

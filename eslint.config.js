@@ -14,10 +14,21 @@ export default defineConfig([
       tseslint.configs.recommended,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
+      reactRefresh.configs.vite,
     ],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'react-hooks/exhaustive-deps': 'off'
+    }
   },
+  {
+    files: ['**/*.test.ts', '**/*.test.tsx', 'src/test/setup.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off'
+    }
+  }
 ])

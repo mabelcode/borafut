@@ -20,18 +20,27 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
 
     useEffect(() => {
         async function join() {
-            // 1. Find group by token
-            const { data: group, error: groupErr } = await supabase
-                .from('groups')
-                .select('id, name, inviteExpiresAt')
-                .eq('inviteToken', token)
-                .single()
+            // 1. Find group by token using RPC (bypasses RLS)
+            const { data: groupData, error: groupErr } = await supabase
+                .rpc('get_group_by_token', { token_text: token })
+
+            const group = Array.isArray(groupData) ? groupData[0] : groupData
 
             if (groupErr || !group) {
+                logger.error('Falha ao validar link de convite', {
+                    token,
+                    error: groupErr,
+                    found: !!group,
+                    hint: 'Pode ser RLS, token inexistente ou erro de rede'
+                })
+
                 if (groupErr) {
-                    Sentry.captureException(groupErr, { tags: { context: 'JoinGroup.findGroup' } })
-                    logger.error('Erro ao buscar grupo pelo token', groupErr)
+                    Sentry.captureException(groupErr, {
+                        tags: { context: 'JoinGroup.findGroup' },
+                        extra: { token }
+                    })
                 }
+
                 setState('error')
                 return
             }

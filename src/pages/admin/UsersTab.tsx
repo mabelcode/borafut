@@ -1,13 +1,31 @@
-import { useState, useEffect } from 'react'
-import { Search, Loader2, ArrowRight, ShieldCheck, Calendar } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Search, Loader2, ArrowRight, ShieldCheck, Calendar, User, Star, Layers } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import * as Sentry from '@sentry/react'
+import SortSelector from '@/components/SortSelector'
+import type { SortOption } from '@/components/SortSelector'
 
-export default function UsersTab() {
-    const [users, setUsers] = useState<any[]>([])
+interface Props {
+    onSelectUser: (userId: string) => void
+}
+
+interface GlobalUser {
+    id: string
+    displayName: string
+    phoneNumber: string
+    globalScore: number
+    mainPosition: string
+    createdAt: string
+    isSuperAdmin: boolean
+    group_members?: { count: number }[]
+}
+
+export default function UsersTab({ onSelectUser }: Props) {
+    const [users, setUsers] = useState<GlobalUser[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
+    const [sortBy, setSortBy] = useState<'NAME' | 'SCORE' | 'DATE' | 'GROUPS'>('NAME')
 
     async function fetchUsers() {
         try {
@@ -16,7 +34,7 @@ export default function UsersTab() {
 
             const { data, error } = await supabase
                 .from('users')
-                .select('*')
+                .select('*, group_members(count)')
                 .order('createdAt', { ascending: false })
 
             if (error) throw error
@@ -24,7 +42,7 @@ export default function UsersTab() {
             logger.debug('Usuários encontrados:', { count: data?.length, users: data })
 
             // For now, let's fetch counts separately or accept 0 until we debug the join
-            setUsers(data || [])
+            setUsers(data as unknown as GlobalUser[] || [])
         } catch (err) {
             logger.error('Erro ao buscar usuários', err)
             Sentry.captureException(err)
@@ -43,17 +61,51 @@ export default function UsersTab() {
         return nameMatch || phoneMatch
     })
 
+    const sortedUsers = useMemo(() => {
+        return [...filteredUsers].sort((a, b) => {
+            switch (sortBy) {
+                case 'NAME':
+                    return (a.displayName || '').localeCompare(b.displayName || '')
+                case 'SCORE':
+                    return (b.globalScore || 0) - (a.globalScore || 0)
+                case 'GROUPS': {
+                    const countA = a.group_members?.[0]?.count || 0
+                    const countB = b.group_members?.[0]?.count || 0
+                    return countB - countA
+                }
+                case 'DATE':
+                default:
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            }
+        })
+    }, [filteredUsers, sortBy])
+
+    const sortOptions: SortOption<'NAME' | 'SCORE' | 'DATE' | 'GROUPS'>[] = [
+        { id: 'NAME', label: 'NOME', icon: User },
+        { id: 'SCORE', label: 'NÍVEL', icon: Star },
+        { id: 'GROUPS', label: 'GRUPOS', icon: Layers },
+        { id: 'DATE', label: 'CADASTRO', icon: Calendar },
+    ]
+
     return (
         <div className="p-4 flex flex-col gap-4">
             {/* Search */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-text" size={16} />
-                <input
-                    type="text"
-                    placeholder="Buscar usuário por nome ou fone..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
+            <div className="flex flex-col gap-3">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-text" size={16} />
+                    <input
+                        type="text"
+                        placeholder="Buscar usuário por nome ou fone..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
+                    />
+                </div>
+
+                <SortSelector
+                    options={sortOptions}
+                    currentValue={sortBy}
+                    onChange={setSortBy}
                 />
             </div>
 
@@ -67,7 +119,7 @@ export default function UsersTab() {
                 </div>
             ) : (
                 <div className="flex flex-col gap-3">
-                    {filteredUsers.map((user) => (
+                    {sortedUsers.map((user) => (
                         <div key={user.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
                             <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-3">
@@ -82,7 +134,10 @@ export default function UsersTab() {
                                         <p className="text-xs text-secondary-text mt-1">{user.phoneNumber || 'Sem fone'}</p>
                                     </div>
                                 </div>
-                                <button className="text-secondary-text p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                                <button
+                                    onClick={() => onSelectUser(user.id)}
+                                    className="text-secondary-text p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
                                     <ArrowRight size={18} />
                                 </button>
                             </div>

@@ -44,7 +44,17 @@ export function useCurrentUser() {
 
             setUser(profileRes.data ?? null)
 
-            const memberships: GroupMembership[] = (membershipsRes.data ?? []).map((m: any) => ({
+            const rawMemberships = (membershipsRes.data ?? []) as unknown as {
+                role: 'ADMIN' | 'PLAYER'
+                groups: {
+                    id: string
+                    name: string
+                    inviteToken: string
+                    inviteExpiresAt: string | null
+                }
+            }[]
+
+            const memberships: GroupMembership[] = rawMemberships.map(m => ({
                 groupId: m.groups.id,
                 groupName: m.groups.name,
                 role: m.role,

@@ -28,25 +28,25 @@ class Logger {
         return `[${timestamp}] [${level}] [${this.name}]: ${message}`
     }
 
-    trace(message: string, ...args: any[]) {
+    trace(message: string, ...args: unknown[]) {
         if (this.shouldLog('TRACE')) {
             console.log(this.formatMessage('TRACE', message), ...args)
         }
     }
 
-    debug(message: string, ...args: any[]) {
+    debug(message: string, ...args: unknown[]) {
         if (this.shouldLog('DEBUG')) {
             console.debug(this.formatMessage('DEBUG', message), ...args)
         }
     }
 
-    info(message: string, ...args: any[]) {
+    info(message: string, ...args: unknown[]) {
         if (this.shouldLog('INFO')) {
             console.info(this.formatMessage('INFO', message), ...args)
         }
     }
 
-    warn(message: string, ...args: any[]) {
+    warn(message: string, ...args: unknown[]) {
         if (this.shouldLog('WARN')) {
             console.warn(this.formatMessage('WARN', message), ...args)
             Sentry.captureMessage(message, {
@@ -56,7 +56,7 @@ class Logger {
         }
     }
 
-    error(message: string, error?: any, ...args: any[]) {
+    error(message: string, error?: unknown, ...args: unknown[]) {
         if (this.shouldLog('ERROR')) {
             console.error(this.formatMessage('ERROR', message), error, ...args)
             Sentry.captureException(error || new Error(message), {

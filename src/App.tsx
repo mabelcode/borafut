@@ -12,6 +12,8 @@ import AdminSettings from '@/pages/AdminSettings'
 import WaitingForInvite from '@/pages/WaitingForInvite'
 import JoinGroup from '@/pages/JoinGroup'
 import SuperAdmin from './pages/SuperAdmin'
+import GroupDetailsView from './pages/admin/GroupDetailsView'
+import UserDetailsView from './pages/admin/UserDetailsView'
 import Layout from '@/components/Layout'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
@@ -43,6 +45,8 @@ type AppState =
   | 'match-detail'
   | 'admin-settings'
   | 'super-admin'
+  | 'super-admin-group'
+  | 'super-admin-user'
 
 /** Reads ?token= from the current URL without changing history */
 function getInviteToken(): string | null {
@@ -59,6 +63,8 @@ function clearTokenFromUrl() {
 const STATE_TITLES: Record<AppState, string | undefined> = {
   'home': 'Partidas',
   'super-admin': 'Painel Super Admin',
+  'super-admin-group': 'Detalhes do Grupo',
+  'super-admin-user': 'Detalhes do Usuário',
   'create-match': 'Nova Partida',
   'match-detail': 'Detalhes da Partida',
   'admin-settings': 'Configurações do Grupo',
@@ -82,6 +88,8 @@ function AppInner({
   const { user, groups, isAdminInAnyGroup, adminGroups, loading, refetch } = useCurrentUser()
   const [appState, setAppState] = useState<AppState>(initialAppState)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   // Once user data loads, route correctly if not already on a specific page
   useEffect(() => {
@@ -92,17 +100,37 @@ function AppInner({
     const pageFromUrl = params.get('page') as AppState
 
     if (appState === 'loading') {
-      if (inviteToken) {
-        logger.debug('Invite token detected', { inviteToken })
-        setAppState('join-group')
-      } else if (pageFromUrl && STATE_TITLES[pageFromUrl]) {
-        // Allow restoring state from URL if valid
-        setAppState(pageFromUrl)
-      } else if (groups.length === 0) {
-        setAppState('waiting-for-invite')
-      } else {
-        setAppState('home')
-      }
+      queueMicrotask(() => {
+        if (inviteToken) {
+          logger.debug('Invite token detected', { inviteToken })
+          setAppState('join-group')
+        } else if (pageFromUrl && STATE_TITLES[pageFromUrl]) {
+          // Allow restoring state from URL if valid
+          if (pageFromUrl === 'super-admin-group') {
+            const groupId = params.get('groupId')
+            if (groupId) {
+              setSelectedGroupId(groupId)
+              setAppState('super-admin-group')
+            } else {
+              setAppState('super-admin')
+            }
+          } else if (pageFromUrl === 'super-admin-user') {
+            const userId = params.get('userId')
+            if (userId) {
+              setSelectedUserId(userId)
+              setAppState('super-admin-user')
+            } else {
+              setAppState('super-admin')
+            }
+          } else {
+            setAppState(pageFromUrl)
+          }
+        } else if (groups.length === 0) {
+          setAppState('waiting-for-invite')
+        } else {
+          setAppState('home')
+        }
+      })
     }
   }, [loading, groups, inviteToken, appState])
 
@@ -113,8 +141,25 @@ function AppInner({
     const url = new URL(window.location.href)
     if (appState === 'home') {
       url.searchParams.delete('page')
+      url.searchParams.delete('groupId')
     } else {
       url.searchParams.set('page', appState)
+      if (appState === 'super-admin-group' && selectedGroupId) {
+        url.searchParams.set('groupId', selectedGroupId)
+      } else {
+        url.searchParams.delete('groupId')
+      }
+
+      if (appState === 'super-admin-user' && selectedUserId) {
+        url.searchParams.set('userId', selectedUserId)
+      } else {
+        url.searchParams.delete('userId')
+      }
+
+      // If we are navigating away from super-admin entirely, clear the tab
+      if (!appState.startsWith('super-admin')) {
+        url.searchParams.delete('tab')
+      }
     }
     window.history.replaceState({}, '', url.toString())
   }, [appState])
@@ -175,7 +220,16 @@ function AppInner({
 
       {appState === 'super-admin' && (
         user?.isSuperAdmin ? (
-          <SuperAdmin />
+          <SuperAdmin
+            onSelectGroup={(id) => {
+              setSelectedGroupId(id)
+              setAppState('super-admin-group')
+            }}
+            onSelectUser={(id) => {
+              setSelectedUserId(id)
+              setAppState('super-admin-user')
+            }}
+          />
         ) : (
           <Home
             onCreateMatch={() => setAppState('create-match')}
@@ -183,6 +237,21 @@ function AppInner({
             onSettings={() => setAppState('admin-settings')}
           />
         )
+      )}
+
+      {appState === 'super-admin-group' && selectedGroupId && user?.isSuperAdmin && (
+        <GroupDetailsView
+          groupId={selectedGroupId}
+          onBack={() => setAppState('super-admin')}
+        />
+      )}
+
+      {appState === 'super-admin-user' && selectedUserId && user?.isSuperAdmin && (
+        <UserDetailsView
+          userId={selectedUserId}
+          onBack={() => setAppState('super-admin')}
+          governanceLevel="SYSTEM"
+        />
       )}
 
       {appState === 'create-match' && (

@@ -4,8 +4,21 @@ import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import * as Sentry from '@sentry/react'
 
+interface AuditLog {
+    id: string
+    action: string
+    targetType?: string
+    targetId?: string
+    metadata?: Record<string, unknown> // Accept raw JSON from Supabase for display purposes
+    createdAt: string
+    actor?: {
+        id: string
+        displayName: string
+    }
+}
+
 export default function AuditLogsTab() {
-    const [logs, setLogs] = useState<any[]>([])
+    const [logs, setLogs] = useState<AuditLog[]>([])
     const [loading, setLoading] = useState(true)
 
     async function fetchLogs() {
@@ -21,7 +34,7 @@ export default function AuditLogsTab() {
                 .limit(50)
 
             if (error) throw error
-            setLogs(data || [])
+            setLogs(data as unknown as AuditLog[] || [])
         } catch (err) {
             logger.error('Erro ao buscar logs de auditoria', err)
             Sentry.captureException(err)
@@ -41,6 +54,9 @@ export default function AuditLogsTab() {
             PROMOTE_ADMIN: 'Promoveu a Admin',
             DEMOTE_PLAYER: 'Rebaixou a Jogador',
             CONFIRM_PAYMENT: 'Confirmou pagamento',
+            UPDATE_GROUP: 'Atualizou um grupo',
+            ADD_GROUP_MEMBER: 'Adicionou integrante',
+            MEMBER_UPDATED: 'Atualizou perfil do usuário',
         }
         return actions[action] || action
     }

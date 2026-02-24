@@ -32,10 +32,10 @@ export function useMyRegistrations() {
                     for (const row of rows ?? []) map[row.matchId] = row.status
                     setData(map)
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 logger.error('Erro ao buscar reservas do usuário', err)
                 Sentry.captureException(err)
-                if (isMounted) setError(err.message)
+                if (isMounted) setError(err instanceof Error ? err.message : 'Erro desconhecido')
             } finally {
                 if (isMounted) setLoading(false)
             }

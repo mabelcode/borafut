@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, FolderKanban, History } from 'lucide-react'
 import GroupsTab from '@/pages/admin/GroupsTab'
 import UsersTab from '@/pages/admin/UsersTab'
@@ -7,8 +7,23 @@ import { logger } from '@/lib/logger'
 
 type Tab = 'groups' | 'users' | 'logs'
 
-export default function SuperAdmin() {
-    const [activeTab, setActiveTab] = useState<Tab>('groups')
+interface Props {
+    onSelectGroup: (groupId: string) => void
+    onSelectUser: (userId: string) => void
+}
+
+export default function SuperAdmin({ onSelectGroup, onSelectUser }: Props) {
+    const [activeTab, setActiveTab] = useState<Tab>(() => {
+        const params = new URLSearchParams(window.location.search)
+        const tab = params.get('tab') as Tab
+        return tab && ['groups', 'users', 'logs'].includes(tab) ? tab : 'groups'
+    })
+
+    useEffect(() => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('tab', activeTab)
+        window.history.replaceState({}, '', url.toString())
+    }, [activeTab])
 
     const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
         { id: 'groups', label: 'Grupos', icon: FolderKanban },
@@ -46,8 +61,8 @@ export default function SuperAdmin() {
 
             {/* Content */}
             <main className="flex-1 overflow-y-auto">
-                {activeTab === 'groups' && <GroupsTab />}
-                {activeTab === 'users' && <UsersTab />}
+                {activeTab === 'groups' && <GroupsTab onSelectGroup={onSelectGroup} />}
+                {activeTab === 'users' && <UsersTab onSelectUser={onSelectUser} />}
                 {activeTab === 'logs' && <AuditLogsTab />}
             </main>
         </div>

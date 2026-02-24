@@ -100,23 +100,24 @@ group_members.role = 'ADMIN' | 'PLAYER'
 Acessível via ícone 🛡 no header da Home (visível apenas para `isSuperAdmin`).
 
 **Tab: Grupos**
-- Listar todos os grupos (nome, nº de membros, data de criação)
-- Criar novo grupo (apenas nome; token gerado automaticamente)
-- Acessar grupo → ver membros com roles
-- Promover/rebaixar usuário dentro de um grupo
-- Adicionar usuário a um grupo
-- **Deletar grupo** (soft/hard delete a definir)
+- Listagem otimizada de grupos com ordenação múltipla (Nome, Data, Nº de Membros).
+- Acesso à Tela de Detalhes do Grupo (`GroupDetailsView`), permitindo:
+  - Adição direta de qualquer usuário da plataforma ao grupo.
+  - Promoção/Rebaixamento de cargos (Player ↔ Admin).
+  - Compartilhamento via Web Share API nativa.
 
 **Tab: Usuários**
-- Listar todos os usuários (nome, posição, grupos que participa)
-- Busca por nome
-- Ver detalhes de um usuário: grupos, role em cada grupo, histórico
-- Promover a Admin de um grupo específico
-- **Deletar usuário** (remove do auth + public.users em cascata)
+- Listagem global de usuários com exibição de Nível (Score) e Posição.
+- Filtro em tempo real por nome/telefone.
+- Acesso à Tela de Detalhes do Usuário (`UserDetailsView`), permitindo:
+  - Edição do `globalScore` e `mainPosition` do usuário (atualizado em tempo real via chamada RPC).
+  - Visualização de todas as `bolhas` (grupos) que o usuário participa.
+  - Remoção forçada do usuário de grupos específicos.
 
-**Tab: Histórico**
-- Log de ações relevantes: quem confirmou pagamento, quem criou/deletou grupo, quem promoveu user, etc.
-- Timestamp + usuário responsável + descrição da ação
+**Tab: Histórico (Log de Auditoria)**
+- Monitoramento de ações sistêmicas (Promover, Rebaixar, Adicionar Membro, Alterar Perfil).
+- Metadados completos exibidos através de parse JSON para rápida auditoria.
+- Suporte estrito a traduções amigáveis do Dicionário de Auditoria (`MEMBER_UPDATED`, `PROMOTE_ADMIN`, etc).
 - Implementado via tabela `audit_log` no banco
 
 ---

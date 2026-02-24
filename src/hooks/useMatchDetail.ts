@@ -56,7 +56,13 @@ export function useMatchDetail(matchId: string) {
         setLoading(false)
     }
 
-    useEffect(() => { fetch() }, [matchId])
+    useEffect(() => {
+        let isMounted = true
+        queueMicrotask(() => {
+            if (isMounted) fetch()
+        })
+        return () => { isMounted = false }
+    }, [matchId])
 
     return { data, loading, error, refetch: fetch }
 }

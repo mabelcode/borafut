@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Shield, Star, Calendar, Loader2, Save, Trash2, Hash, Smartphone, MapPin, Inbox } from 'lucide-react'
+import { ArrowLeft, Shield, Star, Calendar, Loader2, Save, Trash2, Hash, Smartphone, MapPin, Inbox, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import * as Sentry from '@sentry/react'
@@ -31,13 +31,9 @@ interface GroupMembership {
 }
 
 const POSITIONS = [
-    'GOLEIRO',
-    'FIXO',
-    'ALA',
-    'PIVÔ',
-    'ALA/FIXO',
-    'ALA/PIVÔ',
-    'NÃO DEFINIDO'
+    { value: 'GOALKEEPER', label: 'GOLEIRO' },
+    { value: 'DEFENSE', label: 'DEFENSOR' },
+    { value: 'ATTACK', label: 'ATACANTE' }
 ]
 
 export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIEW' }: Props) {
@@ -46,6 +42,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [removingGroupId, setRemovingGroupId] = useState<string | null>(null)
+    const [membershipToRemove, setMembershipToRemove] = useState<GroupMembership | null>(null)
 
     // Form states
     const [score, setScore] = useState('')
@@ -88,22 +85,27 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
         fetchUserData()
     }, [userId])
 
+    const hasChanges = user && (
+        parseFloat(score) !== user.globalScore ||
+        (position || null) !== user.mainPosition
+    )
+
     async function handleUpdateProfile() {
-        if (!user || saving) return
+        if (!user || saving || !hasChanges) return
         try {
             setSaving(true)
-            const { error } = await supabase
-                .from('users')
-                .update({
-                    globalScore: parseFloat(score) || 0,
-                    mainPosition: position || null
-                })
-                .eq('id', userId)
+            const newScore = parseFloat(score) || 0
+
+            const { error } = await supabase.rpc('admin_update_user_profile', {
+                p_user_id: userId,
+                p_global_score: newScore,
+                p_main_position: position || null
+            })
 
             if (error) throw error
 
-            logger.info('Perfil atualizado com sucesso', { userId, score, position })
-            setUser(prev => prev ? { ...prev, globalScore: parseFloat(score), mainPosition: position } : null)
+            logger.info('Perfil atualizado com sucesso via RPC', { userId, score: newScore, position })
+            setUser(prev => prev ? { ...prev, globalScore: newScore, mainPosition: position } : null)
         } catch (err) {
             logger.error('Erro ao atualizar perfil', err)
             Sentry.captureException(err)
@@ -113,8 +115,6 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
     }
 
     async function handleRemoveFromGroup(groupId: string, membershipId: string) {
-        if (!window.confirm('Tem certeza que deseja remover este usuário do grupo?')) return
-
         try {
             setRemovingGroupId(groupId)
             const { error } = await supabase
@@ -126,6 +126,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
 
             logger.info('Usuário removido do grupo', { userId, groupId })
             setMemberships(prev => prev.filter(m => m.id !== membershipId))
+            setMembershipToRemove(null)
         } catch (err) {
             logger.error('Erro ao remover usuário do grupo', err)
             Sentry.captureException(err)
@@ -222,7 +223,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                                 className="w-full pl-9 pr-8 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all appearance-none cursor-pointer"
                                             >
                                                 {POSITIONS.map(p => (
-                                                    <option key={p} value={p === 'NÃO DEFINIDO' ? '' : p}>{p}</option>
+                                                    <option key={p.value} value={p.value}>{p.label}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -231,8 +232,11 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
 
                                 <button
                                     onClick={handleUpdateProfile}
-                                    disabled={saving}
-                                    className="w-full h-12 bg-primary-text text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                                    disabled={saving || !hasChanges}
+                                    className={`w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${hasChanges && !saving
+                                            ? 'bg-primary-text text-white hover:brightness-110 active:scale-95 shadow-lg'
+                                            : 'bg-gray-100 text-secondary-text cursor-not-allowed'
+                                        }`}
                                 >
                                     {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                                     SALVAR ALTERAÇÕES
@@ -273,7 +277,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                     </div>
                                     {governanceLevel === 'SYSTEM' && (
                                         <button
-                                            onClick={() => handleRemoveFromGroup(m.groupId, m.id)}
+                                            onClick={() => setMembershipToRemove(m)}
                                             disabled={removingGroupId === m.groupId}
                                             className="size-10 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-xl transition-colors active:scale-90 disabled:opacity-50"
                                             title="Remover do Grupo"
@@ -297,6 +301,53 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                     </div>
                 </div>
             </div>
+
+            {/* Remove Membership Confirmation Modal */}
+            {membershipToRemove && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                    <div
+                        className="absolute inset-0 bg-primary-text/40 backdrop-blur-md animate-fade-in"
+                        onClick={() => !removingGroupId && setMembershipToRemove(null)}
+                    />
+                    <div className="relative bg-surface w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-spring-up border border-gray-100">
+                        <div className="p-8 flex flex-col gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="size-12 rounded-2xl bg-brand-red/10 text-brand-red flex items-center justify-center shrink-0">
+                                    <AlertTriangle size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-primary-text">Remover do Grupo</h2>
+                                    <p className="text-sm text-secondary-text">Esta ação não pode ser desfeita</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-brand-red/5 p-4 rounded-2xl border border-brand-red/10">
+                                <p className="text-sm text-brand-red leading-relaxed">
+                                    Você está prestes a remover o usuário <strong>{user.displayName}</strong> do grupo <strong>{membershipToRemove.group.name}</strong>.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3 mt-2">
+                                <button
+                                    type="button"
+                                    disabled={removingGroupId !== null}
+                                    onClick={() => setMembershipToRemove(null)}
+                                    className="flex-1 py-4 text-sm font-bold text-secondary-text hover:bg-gray-50 rounded-2xl transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleRemoveFromGroup(membershipToRemove.groupId, membershipToRemove.id)}
+                                    disabled={removingGroupId !== null}
+                                    className="flex-1 py-4 bg-brand-red text-white text-sm font-bold rounded-2xl shadow-lg shadow-brand-red/20 flex items-center justify-center gap-2 hover:brightness-105 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                                >
+                                    {removingGroupId !== null ? <Loader2 size={18} className="animate-spin" /> : 'Sim, Remover'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

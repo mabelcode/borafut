@@ -153,6 +153,11 @@ function AppInner({
       } else {
         url.searchParams.delete('userId')
       }
+
+      // If we are navigating away from super-admin entirely, clear the tab
+      if (!appState.startsWith('super-admin')) {
+        url.searchParams.delete('tab')
+      }
     }
     window.history.replaceState({}, '', url.toString())
   }, [appState])

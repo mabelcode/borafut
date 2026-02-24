@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
-import { FolderKanban, Plus, Loader2, Search, ArrowRight, Edit2, Trash2, AlertTriangle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { logger } from '@/lib/logger'
+import { supabase } from '@/lib/supabase'
 import * as Sentry from '@sentry/react'
+import { AlertTriangle, ArrowRight, Edit2, FolderKanban, Loader2, Plus, Search, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface Props {
     onSelectGroup: (groupId: string) => void
@@ -224,14 +224,6 @@ export default function GroupsTab({ onSelectGroup }: Props) {
                                         <ArrowRight size={18} />
                                     </button>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                                <span className="text-[10px] bg-gray-50 text-secondary-text px-2 py-0.5 rounded-full border border-gray-100">
-                                    ID: {group.id.split('-')[0]}...
-                                </span>
-                                <span className="text-[10px] bg-gray-50 text-secondary-text px-2 py-0.5 rounded-full border border-gray-100">
-                                    Token: {group.inviteToken.slice(0, 6)}...
-                                </span>
                             </div>
                         </div>
                     ))}

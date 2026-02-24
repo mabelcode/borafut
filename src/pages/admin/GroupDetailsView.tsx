@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import * as Sentry from '@sentry/react'
+import SortSelector from '@/components/SortSelector'
+import type { SortOption } from '@/components/SortSelector'
 
 interface Member {
     id: string
@@ -36,6 +38,13 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
     const [addedInSession, setAddedInSession] = useState<string[]>([])
     const [updatingRole, setUpdatingRole] = useState<string | null>(null)
     const [sortBy, setSortBy] = useState<'ROLE' | 'NAME' | 'SCORE' | 'DATE'>('ROLE')
+
+    const sortOptions: SortOption<'ROLE' | 'NAME' | 'SCORE' | 'DATE'>[] = [
+        { id: 'ROLE', label: 'CARGO', icon: Shield },
+        { id: 'NAME', label: 'NOME', icon: User },
+        { id: 'SCORE', label: 'NÍVEL', icon: Star },
+        { id: 'DATE', label: 'DATA', icon: Calendar },
+    ]
 
     async function fetchDetails(silent = false) {
         try {
@@ -383,26 +392,11 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none custom-scrollbar-hidden">
-                            {[
-                                { id: 'ROLE', label: 'CARGO', icon: Shield },
-                                { id: 'NAME', label: 'NOME', icon: User },
-                                { id: 'SCORE', label: 'NÍVEL', icon: Star },
-                                { id: 'DATE', label: 'DATA', icon: Calendar },
-                            ].map((item) => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => setSortBy(item.id as any)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-extrabold border transition-all whitespace-nowrap active:scale-95 ${sortBy === item.id
-                                        ? 'bg-brand-green text-white border-brand-green shadow-md shadow-brand-green/10'
-                                        : 'bg-white text-secondary-text border-gray-100 hover:bg-gray-50'
-                                        }`}
-                                >
-                                    <item.icon size={11} />
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
+                        <SortSelector
+                            options={sortOptions}
+                            currentValue={sortBy}
+                            onChange={setSortBy}
+                        />
                     </div>
 
                     <div className="flex flex-col gap-2.5">

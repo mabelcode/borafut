@@ -9,9 +9,10 @@ type Tab = 'groups' | 'users' | 'logs'
 
 interface Props {
     onSelectGroup: (groupId: string) => void
+    onSelectUser: (userId: string) => void
 }
 
-export default function SuperAdmin({ onSelectGroup }: Props) {
+export default function SuperAdmin({ onSelectGroup, onSelectUser }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('groups')
 
     const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -51,7 +52,7 @@ export default function SuperAdmin({ onSelectGroup }: Props) {
             {/* Content */}
             <main className="flex-1 overflow-y-auto">
                 {activeTab === 'groups' && <GroupsTab onSelectGroup={onSelectGroup} />}
-                {activeTab === 'users' && <UsersTab />}
+                {activeTab === 'users' && <UsersTab onSelectUser={onSelectUser} />}
                 {activeTab === 'logs' && <AuditLogsTab />}
             </main>
         </div>

@@ -42,6 +42,7 @@ export default function AuditLogsTab() {
             DEMOTE_PLAYER: 'Rebaixou a Jogador',
             CONFIRM_PAYMENT: 'Confirmou pagamento',
             UPDATE_GROUP: 'Atualizou um grupo',
+            ADD_GROUP_MEMBER: 'Adicionou integrante',
         }
         return actions[action] || action
     }

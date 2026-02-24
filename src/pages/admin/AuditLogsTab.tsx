@@ -43,6 +43,7 @@ export default function AuditLogsTab() {
             CONFIRM_PAYMENT: 'Confirmou pagamento',
             UPDATE_GROUP: 'Atualizou um grupo',
             ADD_GROUP_MEMBER: 'Adicionou integrante',
+            MEMBER_UPDATED: 'Atualizou perfil do usuário',
         }
         return actions[action] || action
     }

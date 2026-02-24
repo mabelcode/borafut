@@ -93,6 +93,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
             setGlobalUsers(data || [])
         } catch (err) {
             logger.error('Erro ao buscar usuários globais', err)
+            Sentry.captureException(err)
         }
     }
 

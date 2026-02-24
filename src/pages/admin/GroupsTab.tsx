@@ -9,15 +9,25 @@ interface Props {
     onSelectGroup: (groupId: string) => void
 }
 
+interface Group {
+    id: string
+    name: string
+    createdAt: string
+    _count?: {
+        members: number
+    }
+    group_members?: { count: number }[]
+}
+
 export default function GroupsTab({ onSelectGroup }: Props) {
-    const [groups, setGroups] = useState<any[]>([])
+    const [groups, setGroups] = useState<Group[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [newGroupName, setNewGroupName] = useState('')
     const [creating, setCreating] = useState(false)
-    const [editingGroup, setEditingGroup] = useState<any>(null)
-    const [deletingGroup, setDeletingGroup] = useState<any>(null)
+    const [editingGroup, setEditingGroup] = useState<Group | null>(null)
+    const [deletingGroup, setDeletingGroup] = useState<Group | null>(null)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [editName, setEditName] = useState('')
@@ -34,7 +44,7 @@ export default function GroupsTab({ onSelectGroup }: Props) {
                 .order('createdAt', { ascending: false })
 
             if (error) throw error
-            setGroups(data || [])
+            setGroups(data as unknown as Group[] || ([] as Group[]))
         } catch (err) {
             logger.error('Erro ao buscar grupos', err)
             Sentry.captureException(err)

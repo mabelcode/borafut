@@ -7,32 +7,48 @@ import * as Sentry from '@sentry/react'
 import SortSelector from '@/components/SortSelector'
 import type { SortOption } from '@/components/SortSelector'
 
-interface Member {
+interface GroupDetailsViewProps {
+    groupId: string
+    onBack: () => void
+    currentUserRole?: 'ADMIN' | 'SUPER_ADMIN'
+}
+
+interface GroupDetail {
+    id: string
+    name: string
+    inviteToken: string
+}
+
+interface GroupMember {
     id: string
     role: 'ADMIN' | 'PLAYER'
     joinedAt: string
-    user: {
+    user?: {
         id: string
         displayName: string
+        phoneNumber: string
         mainPosition: string
         globalScore: number
         isSuperAdmin: boolean
     }
 }
 
-interface GroupDetailsViewProps {
-    groupId: string
-    onBack: () => void
+interface SearchUser {
+    id: string
+    displayName: string
+    phoneNumber: string
+    mainPosition: string
+    globalScore: number
 }
 
 export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewProps) {
     const { user } = useCurrentUser()
-    const [group, setGroup] = useState<any>(null)
-    const [members, setMembers] = useState<Member[]>([])
+    const [group, setGroup] = useState<GroupDetail | null>(null)
+    const [members, setMembers] = useState<GroupMember[]>([])
     const [loading, setLoading] = useState(true)
     const [copied, setCopied] = useState(false)
     const [isAddingMember, setIsAddingMember] = useState(false)
-    const [globalUsers, setGlobalUsers] = useState<any[]>([])
+    const [globalUsers, setGlobalUsers] = useState<SearchUser[]>([])
     const [searchUser, setSearchUser] = useState('')
     const [addingUser, setAddingUser] = useState<string | null>(null)
     const [addedInSession, setAddedInSession] = useState<string[]>([])
@@ -72,7 +88,8 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                 .eq('groupId', groupId)
 
             if (membersError) throw membersError
-            setMembers(membersData as any[] || [])
+
+            setMembers(membersData as unknown as GroupMember[] || [])
 
         } catch (err) {
             logger.error('Erro ao buscar detalhes do grupo', err)
@@ -446,7 +463,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
 
                                     {!member.user?.isSuperAdmin && (
                                         <button
-                                            onClick={() => handleToggleRole(member.id, member.role, member.user?.id)}
+                                            onClick={() => handleToggleRole(member.id, member.role, member.user?.id || '')}
                                             disabled={updatingRole === member.id}
                                             className={`text-[9px] font-bold px-2 py-1.5 rounded-lg border transition-all active:scale-95 flex items-center gap-1.5 ${member.role === 'ADMIN'
                                                 ? 'bg-gray-50 text-secondary-text border-gray-100 hover:bg-gray-100'

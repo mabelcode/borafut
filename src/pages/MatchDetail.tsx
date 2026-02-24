@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2
@@ -40,11 +40,7 @@ function PixQRCode({
     playerName: string
     matchTitle: string
 }) {
-    const [payload, setPayload] = useState<string | null>(null)
-    const [err, setErr] = useState(false)
-
-    // Generate payload on mount
-    useEffect(() => {
+    const payloadResult = useMemo(() => {
         try {
             const pix = QrCodePix({
                 version: '01',
@@ -55,14 +51,13 @@ function PixQRCode({
                 message: `${matchTitle} - ${playerName}`.slice(0, 72),
                 value: amount,
             })
-            setPayload(pix.payload())
+            return { payload: pix.payload(), err: false }
         } catch {
-            setErr(true)
+            return { payload: null, err: true }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [pixKey, amount, playerName, matchTitle])
 
-    if (err) {
+    if (payloadResult.err) {
         return (
             <p className="text-xs text-brand-red text-center">
                 Erro ao gerar QR Code. Verifique a chave Pix do admin.
@@ -70,12 +65,12 @@ function PixQRCode({
         )
     }
 
-    if (!payload) return <Loader2 size={20} className="animate-spin text-secondary-text mx-auto" />
+    if (!payloadResult.payload) return <Loader2 size={20} className="animate-spin text-secondary-text mx-auto" />
 
     return (
         <div className="flex flex-col items-center gap-3">
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                <QRCodeSVG value={payload} size={180} level="M" />
+                <QRCodeSVG value={payloadResult.payload} size={180} level="M" />
             </div>
             <p className="text-[11px] text-secondary-text text-center leading-relaxed max-w-[220px]">
                 Escaneie com qualquer app de banco para pagar {formatCurrency(amount)} via Pix.

@@ -100,35 +100,37 @@ function AppInner({
     const pageFromUrl = params.get('page') as AppState
 
     if (appState === 'loading') {
-      if (inviteToken) {
-        logger.debug('Invite token detected', { inviteToken })
-        setAppState('join-group')
-      } else if (pageFromUrl && STATE_TITLES[pageFromUrl]) {
-        // Allow restoring state from URL if valid
-        if (pageFromUrl === 'super-admin-group') {
-          const groupId = params.get('groupId')
-          if (groupId) {
-            setSelectedGroupId(groupId)
-            setAppState('super-admin-group')
+      queueMicrotask(() => {
+        if (inviteToken) {
+          logger.debug('Invite token detected', { inviteToken })
+          setAppState('join-group')
+        } else if (pageFromUrl && STATE_TITLES[pageFromUrl]) {
+          // Allow restoring state from URL if valid
+          if (pageFromUrl === 'super-admin-group') {
+            const groupId = params.get('groupId')
+            if (groupId) {
+              setSelectedGroupId(groupId)
+              setAppState('super-admin-group')
+            } else {
+              setAppState('super-admin')
+            }
+          } else if (pageFromUrl === 'super-admin-user') {
+            const userId = params.get('userId')
+            if (userId) {
+              setSelectedUserId(userId)
+              setAppState('super-admin-user')
+            } else {
+              setAppState('super-admin')
+            }
           } else {
-            setAppState('super-admin')
+            setAppState(pageFromUrl)
           }
-        } else if (pageFromUrl === 'super-admin-user') {
-          const userId = params.get('userId')
-          if (userId) {
-            setSelectedUserId(userId)
-            setAppState('super-admin-user')
-          } else {
-            setAppState('super-admin')
-          }
+        } else if (groups.length === 0) {
+          setAppState('waiting-for-invite')
         } else {
-          setAppState(pageFromUrl)
+          setAppState('home')
         }
-      } else if (groups.length === 0) {
-        setAppState('waiting-for-invite')
-      } else {
-        setAppState('home')
-      }
+      })
     }
   }, [loading, groups, inviteToken, appState])
 

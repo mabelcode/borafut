@@ -20,6 +20,8 @@ jobs:
         run: npm ci
       - name: Run Vitest
         run: npm test -- --run
+      - name: Run Linter
+        run: npm run lint
 
   e2e-tests:
     name: Playwright E2E Tests

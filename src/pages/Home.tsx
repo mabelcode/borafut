@@ -35,7 +35,7 @@ function MatchCard({
 }) {
     const badge = STATUS_LABEL[match.status]
 
-    const MY_STATUS_CONFIG = {
+    const MY_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
         CONFIRMED: { label: 'Confirmado ✓', className: 'bg-brand-green text-white' },
         RESERVED: { label: 'Aguardando pagamento', className: 'bg-amber-50 text-amber-600 border border-amber-100' },
         WAITLIST: { label: 'Na fila de espera', className: 'bg-gray-100 text-secondary-text' },

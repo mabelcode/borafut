@@ -10,8 +10,19 @@ interface Props {
     onSelectUser: (userId: string) => void
 }
 
+interface GlobalUser {
+    id: string
+    displayName: string
+    phoneNumber: string
+    globalScore: number
+    mainPosition: string
+    createdAt: string
+    isSuperAdmin: boolean
+    group_members?: { count: number }[]
+}
+
 export default function UsersTab({ onSelectUser }: Props) {
-    const [users, setUsers] = useState<any[]>([])
+    const [users, setUsers] = useState<GlobalUser[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [sortBy, setSortBy] = useState<'NAME' | 'SCORE' | 'DATE' | 'GROUPS'>('NAME')
@@ -31,7 +42,7 @@ export default function UsersTab({ onSelectUser }: Props) {
             logger.debug('Usuários encontrados:', { count: data?.length, users: data })
 
             // For now, let's fetch counts separately or accept 0 until we debug the join
-            setUsers(data || [])
+            setUsers(data as unknown as GlobalUser[] || [])
         } catch (err) {
             logger.error('Erro ao buscar usuários', err)
             Sentry.captureException(err)
@@ -57,10 +68,11 @@ export default function UsersTab({ onSelectUser }: Props) {
                     return (a.displayName || '').localeCompare(b.displayName || '')
                 case 'SCORE':
                     return (b.globalScore || 0) - (a.globalScore || 0)
-                case 'GROUPS':
+                case 'GROUPS': {
                     const countA = a.group_members?.[0]?.count || 0
                     const countB = b.group_members?.[0]?.count || 0
                     return countB - countA
+                }
                 case 'DATE':
                 default:
                     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

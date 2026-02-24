@@ -33,8 +33,8 @@ export function useMatches() {
 
             if (error) throw error
             setMatches(data ?? [])
-        } catch (err: any) {
-            const msg = err.message || 'Erro desconhecido ao buscar partidas'
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Erro desconhecido ao buscar partidas'
             logger.error('Erro ao buscar partidas', err)
             setError(msg)
             Sentry.captureException(err)

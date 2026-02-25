@@ -42,7 +42,7 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
                         setState('expired')
                     } else {
                         setState('error')
-                        logger.error('Erro ao entrar no grupo via RPC', { joinErr, token })
+                        logger.error('Erro ao entrar no grupo via RPC', joinErr)
                         Sentry.captureException(joinErr, { tags: { context: 'JoinGroup.rpc' } })
                     }
                     return

@@ -153,21 +153,6 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
                 {/* Número de vagas */}
                 <FieldCard icon={<Users size={15} />} label="Limite de vagas" hint="Mínimo 2 jogadores">
                     <div className="flex items-center gap-2">
-                        {[10, 14, 18, 22].map((n) => (
-                            <button
-                                key={n}
-                                type="button"
-                                onClick={() => setMaxPlayers(String(n))}
-                                className={[
-                                    'flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all duration-150 active:scale-95',
-                                    maxPlayers === String(n)
-                                        ? 'bg-brand-green border-brand-green text-white shadow-sm shadow-brand-green/20'
-                                        : 'bg-background border-gray-200 text-secondary-text hover:border-gray-300',
-                                ].join(' ')}
-                            >
-                                {n}
-                            </button>
-                        ))}
                         <input
                             type="number"
                             min={2}

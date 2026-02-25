@@ -12,6 +12,7 @@ import AdminSettings from '@/pages/AdminSettings'
 import WaitingForInvite from '@/pages/WaitingForInvite'
 import JoinGroup from '@/pages/JoinGroup'
 import SuperAdmin from './pages/SuperAdmin'
+import GroupAdmin from './pages/GroupAdmin'
 import GroupDetailsView from './pages/admin/GroupDetailsView'
 import UserDetailsView from './pages/admin/UserDetailsView'
 import Layout from '@/components/Layout'
@@ -47,6 +48,7 @@ type AppState =
   | 'super-admin'
   | 'super-admin-group'
   | 'super-admin-user'
+  | 'group-admin'
 
 /** Reads ?token= from the current URL without changing history */
 function getInviteToken(): string | null {
@@ -68,6 +70,7 @@ const STATE_TITLES: Record<AppState, string | undefined> = {
   'create-match': 'Nova Partida',
   'match-detail': 'Detalhes da Partida',
   'admin-settings': 'Configurações do Grupo',
+  'group-admin': 'Painel do Admin',
   'waiting-for-invite': 'Início',
   'join-group': 'Entrar no Grupo',
   'loading': undefined,
@@ -75,8 +78,7 @@ const STATE_TITLES: Record<AppState, string | undefined> = {
   'onboarding': 'Seja bem-vindo',
 }
 
-// Inner component that has access to useCurrentUser
-function AppInner({
+export function AppInner({
   session,
   inviteToken,
   initialAppState,
@@ -108,19 +110,31 @@ function AppInner({
           // Allow restoring state from URL if valid
           if (pageFromUrl === 'super-admin-group') {
             const groupId = params.get('groupId')
-            if (groupId) {
+            if (user?.isSuperAdmin && groupId) {
               setSelectedGroupId(groupId)
               setAppState('super-admin-group')
             } else {
-              setAppState('super-admin')
+              setAppState('home')
             }
           } else if (pageFromUrl === 'super-admin-user') {
             const userId = params.get('userId')
-            if (userId) {
+            if (user?.isSuperAdmin && userId) {
               setSelectedUserId(userId)
               setAppState('super-admin-user')
             } else {
+              setAppState('home')
+            }
+          } else if (pageFromUrl === 'super-admin') {
+            if (user?.isSuperAdmin) {
               setAppState('super-admin')
+            } else {
+              setAppState('home')
+            }
+          } else if (pageFromUrl === 'group-admin') {
+            if (isAdminInAnyGroup) {
+              setAppState('group-admin')
+            } else {
+              setAppState('home')
             }
           } else {
             setAppState(pageFromUrl)
@@ -132,7 +146,7 @@ function AppInner({
         }
       })
     }
-  }, [loading, groups, inviteToken, appState])
+  }, [loading, groups, inviteToken, appState, isAdminInAnyGroup, user])
 
   // Sync URL with appState
   useEffect(() => {
@@ -156,8 +170,8 @@ function AppInner({
         url.searchParams.delete('userId')
       }
 
-      // If we are navigating away from super-admin entirely, clear the tab
-      if (!appState.startsWith('super-admin')) {
+      // If we are navigating away from super-admin or group-admin entirely, clear the tab
+      if (!appState.startsWith('super-admin') && appState !== 'group-admin') {
         url.searchParams.delete('tab')
       }
     }
@@ -186,6 +200,8 @@ function AppInner({
         setAppState('login')
       }}
       onSuperAdmin={() => setAppState('super-admin')}
+      onGroupAdmin={() => setAppState('group-admin')}
+      isAdmin={isAdminInAnyGroup}
     >
       {appState === 'join-group' && inviteToken && (
         <JoinGroup
@@ -214,7 +230,7 @@ function AppInner({
         <Home
           onCreateMatch={() => setAppState('create-match')}
           onSelectMatch={(id: string) => { setSelectedMatchId(id); setAppState('match-detail') }}
-          onSettings={() => setAppState('admin-settings')}
+          onSettings={() => setAppState('group-admin')}
         />
       )}
 
@@ -276,6 +292,13 @@ function AppInner({
         <AdminSettings
           session={session}
           adminGroups={adminGroups}
+          onBack={() => setAppState('home')}
+        />
+      )}
+
+      {appState === 'group-admin' && isAdminInAnyGroup && (
+        <GroupAdmin
+          groupId={selectedGroupId || activeAdminGroupId}
           onBack={() => setAppState('home')}
         />
       )}

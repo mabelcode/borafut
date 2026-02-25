@@ -15,7 +15,7 @@ export interface Match {
     createdAt: string
 }
 
-export function useMatches() {
+export function useMatches(groupId?: string) {
     const [matches, setMatches] = useState<Match[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -25,11 +25,16 @@ export function useMatches() {
         setError(null)
 
         try {
-            // RLS automatically filters to the user's groups — no extra filter needed
-            const { data, error } = await supabase
+            let query = supabase
                 .from('matches')
                 .select('*')
                 .order('scheduledAt', { ascending: true })
+
+            if (groupId !== undefined) {
+                query = query.eq('groupId', groupId)
+            }
+
+            const { data, error } = await query
 
             if (error) throw error
             setMatches(data ?? [])
@@ -43,7 +48,7 @@ export function useMatches() {
         }
     }
 
-    useEffect(() => { fetchMatches() }, [])
+    useEffect(() => { fetchMatches() }, [groupId])
 
     return { matches, loading, error, refetch: fetchMatches }
 }

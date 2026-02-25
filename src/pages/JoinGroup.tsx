@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -18,71 +18,69 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
     const [state, setState] = useState<JoinState>('loading')
     const [groupName, setGroupName] = useState('')
 
+    // Stabilize onSuccess callback which might be passed inline
+    const onSuccessRef = useRef(onSuccess)
     useEffect(() => {
+        onSuccessRef.current = onSuccess
+    }, [onSuccess])
+
+    useEffect(() => {
+        let cancelled = false
+        let timeoutId: ReturnType<typeof setTimeout> | null = null
+
         async function join() {
-            // 1. Find group by token using RPC (bypasses RLS)
-            const { data: groupData, error: groupErr } = await supabase
-                .rpc('get_group_by_token', { token_text: token })
+            try {
+                // 1. Get group info to show the name
+                const { data: groupData, error: groupErr } = await supabase
+                    .rpc('get_group_by_token', { token_text: token })
 
-            const group = Array.isArray(groupData) ? groupData[0] : groupData
+                if (cancelled) return
 
-            if (groupErr || !group) {
-                logger.error('Falha ao validar link de convite', {
-                    token,
-                    error: groupErr,
-                    found: !!group,
-                    hint: 'Pode ser RLS, token inexistente ou erro de rede'
-                })
+                const group = Array.isArray(groupData) ? groupData[0] : groupData
 
-                if (groupErr) {
-                    Sentry.captureException(groupErr, {
-                        tags: { context: 'JoinGroup.findGroup' },
-                        extra: { token }
-                    })
+                if (groupErr || !group) {
+                    setState('error')
+                    return
                 }
 
-                setState('error')
-                return
+                setGroupName(group.name)
+
+                // 2. Try to join via secure RPC
+                const { error: joinErr } = await supabase.rpc('join_group_via_token', { token_text: token })
+
+                if (cancelled) return
+
+                if (joinErr) {
+                    if (joinErr.message.includes('expirado')) {
+                        setState('expired')
+                    } else {
+                        setState('error')
+                        logger.error('Erro ao entrar no grupo via RPC', joinErr)
+                        Sentry.captureException(joinErr, { tags: { context: 'JoinGroup.rpc' } })
+                    }
+                    return
+                }
+
+                setState('success')
+                timeoutId = setTimeout(() => {
+                    if (!cancelled) {
+                        onSuccessRef.current()
+                    }
+                }, 1800)
+            } catch (err) {
+                if (!cancelled) {
+                    logger.error('Erro inesperado ao entrar no grupo', err)
+                    setState('error')
+                }
             }
-
-            setGroupName(group.name)
-
-            // 2. Check expiry
-            if (group.inviteExpiresAt && new Date(group.inviteExpiresAt) < new Date()) {
-                setState('expired')
-                return
-            }
-
-            // 3. Check if already a member
-            const { data: existing } = await supabase
-                .from('group_members')
-                .select('id')
-                .eq('groupId', group.id)
-                .eq('userId', session.user.id)
-                .maybeSingle()
-
-            if (existing) {
-                setState('already-member')
-                setTimeout(onSuccess, 1500)
-                return
-            }
-
-            // 4. Insert membership as PLAYER
-            const { error: insertErr } = await supabase
-                .from('group_members')
-                .insert({ groupId: group.id, userId: session.user.id, role: 'PLAYER' })
-
-            if (insertErr) {
-                Sentry.captureException(insertErr, { tags: { context: 'JoinGroup.insertMember' } })
-                setState('error')
-                return
-            }
-
-            setState('success')
-            setTimeout(onSuccess, 1800)
         }
 
         join()
+
+        return () => {
+            cancelled = true
+            if (timeoutId) clearTimeout(timeoutId)
+        }
     }, [token, session.user.id])
 
     const configs: Record<JoinState, { icon: React.ReactNode; title: string; desc: string; color: string }> = {

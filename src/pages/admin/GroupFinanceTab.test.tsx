@@ -115,4 +115,48 @@ describe('GroupFinanceTab Component', () => {
             expect(screen.getByText('Pelada de Terça')).toBeInTheDocument()
         })
     })
+
+    it('applies status guard when confirming payment', async () => {
+        const mockEq = vi.fn().mockReturnThis()
+        const mockUpdate = vi.fn().mockReturnThis()
+        const mockThen = vi.fn((onSuccess) => onSuccess({ error: null }))
+
+            ; (supabase.from as any).mockImplementation((table: string) => {
+                if (table === 'users') {
+                    return {
+                        select: vi.fn().mockReturnThis(),
+                        eq: vi.fn().mockReturnThis(),
+                        single: vi.fn().mockResolvedValue({ data: { pixKey: 'test@pix.com' } })
+                    }
+                }
+                if (table === 'match_registrations') {
+                    return {
+                        select: vi.fn().mockReturnThis(),
+                        eq: vi.fn().mockReturnThis(),
+                        update: mockUpdate,
+                        then: (onSuccess: any) => onSuccess({ data: mockPendingRegs, error: null })
+                    }
+                }
+            })
+
+        // Re-mock separate chain for handleConfirmPayment
+        mockUpdate.mockReturnValue({
+            eq: mockEq,
+        })
+        mockEq.mockReturnValue({
+            eq: mockEq,
+            then: mockThen
+        })
+
+        render(<GroupFinanceTab groupId={mockGroupId} />)
+
+        const confirmBtn = await screen.findByText('CONFIRMAR PIX')
+        fireEvent.click(confirmBtn)
+
+        await waitFor(() => {
+            expect(mockUpdate).toHaveBeenCalledWith({ status: 'CONFIRMED' })
+            expect(mockEq).toHaveBeenCalledWith('status', 'RESERVED')
+            expect(mockEq).toHaveBeenCalledWith('id', 'reg-1')
+        })
+    })
 })

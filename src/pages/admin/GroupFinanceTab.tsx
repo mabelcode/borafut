@@ -135,6 +135,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                 .from('match_registrations')
                 .update({ status: 'CONFIRMED' })
                 .eq('id', regId)
+                .eq('status', 'RESERVED')
 
             if (error) throw error
 

@@ -23,4 +23,14 @@ vi.mock('@/lib/supabase', () => ({
 vi.mock('@sentry/react', () => ({
     captureException: vi.fn((err) => console.error("SENTRY CAUGHT ERROR:", err)),
     captureMessage: vi.fn(),
+    logger: {
+        trace: vi.fn(),
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        fatal: vi.fn(),
+        fmt: (strings: TemplateStringsArray, ...values: unknown[]) =>
+            strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), ''),
+    },
 }))

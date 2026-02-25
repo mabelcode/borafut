@@ -37,18 +37,21 @@ class Logger {
     debug(message: string, ...args: unknown[]) {
         if (this.shouldLog('DEBUG')) {
             console.debug(this.formatMessage('DEBUG', message), ...args)
+            Sentry.logger.debug(message, { context: this.name })
         }
     }
 
     info(message: string, ...args: unknown[]) {
         if (this.shouldLog('INFO')) {
             console.info(this.formatMessage('INFO', message), ...args)
+            Sentry.logger.info(message, { context: this.name })
         }
     }
 
     warn(message: string, ...args: unknown[]) {
         if (this.shouldLog('WARN')) {
             console.warn(this.formatMessage('WARN', message), ...args)
+            Sentry.logger.warn(message, { context: this.name })
             Sentry.captureMessage(message, {
                 level: 'warning',
                 extra: { context: this.name, args },
@@ -59,6 +62,7 @@ class Logger {
     error(message: string, error?: unknown, ...args: unknown[]) {
         if (this.shouldLog('ERROR')) {
             console.error(this.formatMessage('ERROR', message), error, ...args)
+            Sentry.logger.error(message, { context: this.name, error: String(error) })
             Sentry.captureException(error || new Error(message), {
                 extra: { context: this.name, message, args },
             })

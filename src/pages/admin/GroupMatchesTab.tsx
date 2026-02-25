@@ -330,12 +330,14 @@ export default function GroupMatchesTab({ groupId }: Props) {
                                     <div className="flex gap-1.5">
                                         <button
                                             onClick={() => startEdit(match)}
+                                            aria-label="Editar partida"
                                             className="size-9 rounded-xl bg-gray-50 text-secondary-text flex items-center justify-center hover:bg-brand-green/10 hover:text-brand-green transition-all"
                                         >
                                             <Edit2 size={16} />
                                         </button>
                                         <button
                                             onClick={() => { setMatchToDelete(match); setIsDeleteModalOpen(true) }}
+                                            aria-label="Excluir partida"
                                             className="size-9 rounded-xl bg-gray-50 text-secondary-text flex items-center justify-center hover:bg-brand-red/10 hover:text-brand-red transition-all"
                                         >
                                             <Trash2 size={16} />

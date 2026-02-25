@@ -13,15 +13,32 @@ interface PendingRegistration {
     matchId: string
     status: 'RESERVED'
     match: {
-        title: string
+        title: string | null
         scheduledAt: string
         groupId: string
     }
     user: {
         id: string
-        displayName: string
+        displayName: string | null
         phoneNumber: string
     }
+}
+
+// Raw type from Supabase join
+interface SupabasePendingRegistration {
+    id: string
+    matchId: string
+    status: string
+    match: {
+        title: string | null
+        scheduledAt: string
+        groupId: string
+    } | null
+    user: {
+        id: string
+        displayName: string | null
+        phoneNumber: string | null
+    } | null
 }
 
 export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
@@ -66,7 +83,14 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
 
             if (regsError) throw regsError
 
-            setPendingRegs(regsData as any[] || [])
+            // Type guard to ensure data integrity
+            const rawRegs = (regsData as unknown as SupabasePendingRegistration[]) || []
+            const validatedRegs: PendingRegistration[] = rawRegs
+                .filter((r): r is SupabasePendingRegistration & { match: object; user: { phoneNumber: string } } =>
+                    !!r.match && !!r.user && !!r.user.phoneNumber
+                ) as any
+
+            setPendingRegs(validatedRegs)
 
         } catch (err) {
             logger.error('Erro ao buscar dados financeiros do grupo', err)
@@ -185,10 +209,10 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-center gap-3">
                                         <div className="size-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-bold border border-amber-100">
-                                            {reg.user.displayName?.[0] || 'J'}
+                                            {(reg.user.displayName || 'J')[0]}
                                         </div>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-sm font-bold text-primary-text truncate">{reg.user.displayName}</span>
+                                            <span className="text-sm font-bold text-primary-text truncate">{reg.user.displayName || 'Jogador'}</span>
                                             <span className="text-[10px] text-secondary-text font-medium truncate">{reg.match.title || 'Partida'}</span>
                                         </div>
                                     </div>
@@ -208,7 +232,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                                         CONFIRMAR PIX
                                     </button>
                                     <button
-                                        onClick={() => openWhatsApp(reg.user.phoneNumber, reg.match.title)}
+                                        onClick={() => openWhatsApp(reg.user.phoneNumber, reg.match.title || 'Partida')}
                                         className="size-10 flex items-center justify-center bg-gray-50 text-secondary-text rounded-xl hover:bg-gray-100 transition-all active:scale-95 border border-gray-100"
                                         title="Cobrar no WhatsApp"
                                     >

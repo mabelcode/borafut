@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -18,12 +18,23 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
     const [state, setState] = useState<JoinState>('loading')
     const [groupName, setGroupName] = useState('')
 
+    // Stabilize onSuccess callback which might be passed inline
+    const onSuccessRef = useRef(onSuccess)
     useEffect(() => {
+        onSuccessRef.current = onSuccess
+    }, [onSuccess])
+
+    useEffect(() => {
+        let cancelled = false
+        let timeoutId: ReturnType<typeof setTimeout> | null = null
+
         async function join() {
             try {
                 // 1. Get group info to show the name
                 const { data: groupData, error: groupErr } = await supabase
                     .rpc('get_group_by_token', { token_text: token })
+
+                if (cancelled) return
 
                 const group = Array.isArray(groupData) ? groupData[0] : groupData
 
@@ -37,6 +48,8 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
                 // 2. Try to join via secure RPC
                 const { error: joinErr } = await supabase.rpc('join_group_via_token', { token_text: token })
 
+                if (cancelled) return
+
                 if (joinErr) {
                     if (joinErr.message.includes('expirado')) {
                         setState('expired')
@@ -49,15 +62,26 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
                 }
 
                 setState('success')
-                setTimeout(onSuccess, 1800)
+                timeoutId = setTimeout(() => {
+                    if (!cancelled) {
+                        onSuccessRef.current()
+                    }
+                }, 1800)
             } catch (err) {
-                logger.error('Erro inesperado ao entrar no grupo', err)
-                setState('error')
+                if (!cancelled) {
+                    logger.error('Erro inesperado ao entrar no grupo', err)
+                    setState('error')
+                }
             }
         }
 
         join()
-    }, [token, session.user.id, onSuccess])
+
+        return () => {
+            cancelled = true
+            if (timeoutId) clearTimeout(timeoutId)
+        }
+    }, [token, session.user.id])
 
     const configs: Record<JoinState, { icon: React.ReactNode; title: string; desc: string; color: string }> = {
         loading: {

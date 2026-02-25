@@ -30,7 +30,7 @@ export function useMatches(groupId?: string) {
                 .select('*')
                 .order('scheduledAt', { ascending: true })
 
-            if (groupId) {
+            if (groupId !== undefined) {
                 query = query.eq('groupId', groupId)
             }
 

@@ -1,7 +1,6 @@
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
-import * as Sentry from '@sentry/react'
 import { AlertTriangle, ArrowRight, Edit2, FolderKanban, Loader2, Plus, Search, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -47,7 +46,6 @@ export default function GroupsTab({ onSelectGroup }: Props) {
             setGroups(data as unknown as Group[] || ([] as Group[]))
         } catch (err) {
             logger.error('Erro ao buscar grupos', err)
-            Sentry.captureException(err)
         } finally {
             setLoading(false)
         }
@@ -87,7 +85,6 @@ export default function GroupsTab({ onSelectGroup }: Props) {
             fetchGroups()
         } catch (err) {
             logger.error('Erro ao criar grupo', err)
-            Sentry.captureException(err)
         } finally {
             setCreating(false)
         }
@@ -121,7 +118,6 @@ export default function GroupsTab({ onSelectGroup }: Props) {
             fetchGroups()
         } catch (err) {
             logger.error('Erro ao atualizar grupo', err)
-            Sentry.captureException(err)
         } finally {
             setIsUpdating(false)
         }
@@ -154,7 +150,6 @@ export default function GroupsTab({ onSelectGroup }: Props) {
             fetchGroups()
         } catch (err) {
             logger.error('Erro ao excluir grupo', err)
-            Sentry.captureException(err)
         } finally {
             setIsDeleting(false)
         }

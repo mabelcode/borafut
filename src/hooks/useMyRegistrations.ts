@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 
 /** Map of matchId → user's registration status in that match */
 export type MyRegistrationsMap = Record<string, 'RESERVED' | 'CONFIRMED' | 'WAITLIST'>
@@ -34,7 +33,6 @@ export function useMyRegistrations() {
                 }
             } catch (err: unknown) {
                 logger.error('Erro ao buscar reservas do usuário', err)
-                Sentry.captureException(err)
                 if (isMounted) setError(err instanceof Error ? err.message : 'Erro desconhecido')
             } finally {
                 if (isMounted) setLoading(false)

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 
 export interface Match {
     id: string
@@ -42,7 +41,6 @@ export function useMatches(groupId?: string) {
             const msg = err instanceof Error ? err.message : 'Erro desconhecido ao buscar partidas'
             logger.error('Erro ao buscar partidas', err)
             setError(msg)
-            Sentry.captureException(err)
         } finally {
             setLoading(false)
         }

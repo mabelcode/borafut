@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/react'
+import { createLogger } from '@/lib/logger'
 import { useState, useEffect, useMemo } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
@@ -9,6 +9,8 @@ import { QrCodePix } from 'qrcode-pix'
 import { supabase } from '@/lib/supabase'
 import { useMatchDetail, type Registration } from '@/hooks/useMatchDetail'
 import type { Session } from '@supabase/supabase-js'
+
+const logger = createLogger('MatchDetail')
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -168,7 +170,7 @@ function CTAButton({
         })
         setLoading(false)
         if (error) {
-            Sentry.captureException(error, { tags: { context: 'MatchDetail.register', status } })
+            logger.error('Erro ao inscrever jogador na partida', error)
             setError(error.message); return
         }
         onAction()
@@ -271,7 +273,7 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
             .from('match_registrations')
             .update({ status: 'CONFIRMED' })
             .eq('id', regId)
-        if (error) Sentry.captureException(error, { tags: { context: 'MatchDetail.confirmPayment' } })
+        if (error) logger.error('Erro ao confirmar pagamento', error)
         refetch()
     }
 

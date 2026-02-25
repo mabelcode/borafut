@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Loader2, CheckCircle2, Link2, Copy, RefreshCw, Clock, Edit2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 
 interface GroupSettingsTabProps {
     groupId: string
@@ -46,7 +45,6 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
             setNewName(data.name)
         } catch (err) {
             logger.error('Erro ao buscar dados do grupo para ajustes', err)
-            Sentry.captureException(err)
         } finally {
             setLoading(false)
         }
@@ -75,7 +73,6 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
             logger.info('Nome do grupo atualizado pelo admin', { groupId, newName })
         } catch (err) {
             logger.error('Erro ao atualizar nome do grupo', err)
-            Sentry.captureException(err)
         } finally {
             setIsSavingName(false)
         }
@@ -100,7 +97,6 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
             logger.info('Link de convite regenerado pelo admin', { groupId })
         } catch (err) {
             logger.error('Erro ao regenerar link de convite', err)
-            Sentry.captureException(err)
         } finally {
             setRegenerating(false)
         }

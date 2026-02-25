@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { Search, Loader2, ArrowRight, ShieldCheck, Calendar, User, Star, Layers } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 import SortSelector from '@/components/SortSelector'
 import type { SortOption } from '@/components/SortSelector'
 
@@ -45,7 +44,6 @@ export default function UsersTab({ onSelectUser }: Props) {
             setUsers(data as unknown as GlobalUser[] || [])
         } catch (err) {
             logger.error('Erro ao buscar usuários', err)
-            Sentry.captureException(err)
         } finally {
             setLoading(false)
         }

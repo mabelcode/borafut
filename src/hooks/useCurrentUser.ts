@@ -1,6 +1,8 @@
-import * as Sentry from '@sentry/react'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('useCurrentUser')
 
 export interface UserProfile {
     id: string
@@ -39,8 +41,8 @@ export function useCurrentUser() {
                     .eq('userId', authUser.id),
             ])
 
-            if (profileRes.error) Sentry.captureException(profileRes.error, { tags: { context: 'fetchUser.profile' } })
-            if (membershipsRes.error) Sentry.captureException(membershipsRes.error, { tags: { context: 'fetchUser.memberships' } })
+            if (profileRes.error) logger.error('Erro ao buscar perfil do usuário', profileRes.error)
+            if (membershipsRes.error) logger.error('Erro ao buscar memberships', membershipsRes.error)
 
             setUser(profileRes.data ?? null)
 
@@ -63,7 +65,7 @@ export function useCurrentUser() {
             }))
             setGroups(memberships)
         } catch (err) {
-            Sentry.captureException(err, { tags: { context: 'fetchUser' } })
+            logger.error('Erro inesperado ao buscar dados do usuário', err)
         } finally {
             setLoading(false)
         }

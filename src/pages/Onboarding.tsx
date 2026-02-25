@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { ArrowRight, Loader2, User, Shield, Sword, Goal, LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { createLogger } from '@/lib/logger'
 import BrandLogo from '@/components/BrandLogo'
 import type { Session } from '@supabase/supabase-js'
+
+const logger = createLogger('Onboarding')
 
 /* ── Types ────────────────────────────────────────────────────────── */
 
@@ -81,7 +84,7 @@ export default function Onboarding({ session, onComplete, onSignOut }: Props) {
         })
 
         if (error) {
-            console.error('[Onboarding] Supabase error:', error)
+            logger.error('Erro no onboarding', error)
             setError(`Erro: ${error.message}`)
             setLoading(false)
             return

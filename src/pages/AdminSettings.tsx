@@ -1,9 +1,11 @@
-import * as Sentry from '@sentry/react'
+import { createLogger } from '@/lib/logger'
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Key, Loader2, CheckCircle2, Link2, Copy, RefreshCw, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 import type { GroupMembership } from '@/hooks/useCurrentUser'
+
+const logger = createLogger('AdminSettings')
 
 const PIX_KEY_HINTS: Record<string, string> = {
     cpf: 'Somente números (ex: 12345678901)',
@@ -68,7 +70,7 @@ export default function AdminSettings({ session, adminGroups, onBack }: Props) {
             .eq('id', session.user.id)
         setSaving(false)
         if (error) {
-            Sentry.captureException(error, { tags: { context: 'AdminSettings.savePix' } })
+            logger.error('Erro ao salvar chave Pix', error)
             setPixError(`Erro: ${error.message}`); return
         }
         setSaved(true)
@@ -92,7 +94,7 @@ export default function AdminSettings({ session, adminGroups, onBack }: Props) {
             setInviteToken(newToken)
             setInviteExpiresAt(expiresAt)
         } else {
-            Sentry.captureException(error, { tags: { context: 'AdminSettings.regenerateInvite' } })
+            logger.error('Erro ao regenerar link de convite', error)
         }
         setRegenerating(false)
     }

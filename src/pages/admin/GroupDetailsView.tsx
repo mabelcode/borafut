@@ -3,7 +3,6 @@ import { ArrowLeft, Users, Shield, User, Loader2, Star, Calendar, Share2, Check,
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
-import * as Sentry from '@sentry/react'
 import SortSelector from '@/components/SortSelector'
 import type { SortOption } from '@/components/SortSelector'
 
@@ -93,7 +92,6 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
 
         } catch (err) {
             logger.error('Erro ao buscar detalhes do grupo', err)
-            Sentry.captureException(err)
         } finally {
             setLoading(false)
         }
@@ -110,7 +108,6 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
             setGlobalUsers(data || [])
         } catch (err) {
             logger.error('Erro ao buscar usuários globais', err)
-            Sentry.captureException(err)
         }
     }
 
@@ -180,7 +177,6 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
             setAddedInSession(prev => [...prev, userId])
         } catch (err) {
             logger.error('Erro ao adicionar membro', err)
-            Sentry.captureException(err)
         } finally {
             setAddingUser(null)
         }
@@ -218,7 +214,6 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
             await fetchDetails(true)
         } catch (err) {
             logger.error('Erro ao alternar cargo do membro', err)
-            Sentry.captureException(err)
         } finally {
             setUpdatingRole(null)
         }

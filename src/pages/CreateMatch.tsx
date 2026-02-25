@@ -1,8 +1,10 @@
-import * as Sentry from '@sentry/react'
+import { createLogger } from '@/lib/logger'
 import { useState } from 'react'
 import { ArrowLeft, Calendar, Users, CircleDollarSign, FileText, Loader2, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
+
+const logger = createLogger('CreateMatch')
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -99,7 +101,7 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
         })
 
         if (error) {
-            Sentry.captureException(error, { tags: { context: 'CreateMatch' } })
+            logger.error('Erro ao criar partida', error)
             setError(`Erro ao criar partida: ${error.message}`)
             setLoading(false)
             return

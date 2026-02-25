@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Loader2, Info, User, Target, Clock, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 
 interface AuditLog {
     id: string
@@ -37,7 +36,6 @@ export default function AuditLogsTab() {
             setLogs(data as unknown as AuditLog[] || [])
         } catch (err) {
             logger.error('Erro ao buscar logs de auditoria', err)
-            Sentry.captureException(err)
         } finally {
             setLoading(false)
         }

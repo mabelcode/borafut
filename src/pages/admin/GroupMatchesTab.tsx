@@ -3,7 +3,6 @@ import { Calendar, Users, CircleDollarSign, Loader2, Plus, Edit2, Trash2, X, Arr
 import { useMatches, type Match } from '@/hooks/useMatches'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 
 interface Props {
     groupId: string
@@ -141,7 +140,6 @@ export default function GroupMatchesTab({ groupId }: Props) {
             resetForm()
         } catch (err) {
             logger.error('Erro ao salvar partida', err)
-            Sentry.captureException(err)
         } finally {
             setSaving(false)
         }
@@ -160,7 +158,6 @@ export default function GroupMatchesTab({ groupId }: Props) {
             setMatchToDelete(null)
         } catch (err) {
             logger.error('Erro ao excluir partida', err)
-            Sentry.captureException(err)
         } finally {
             setIsDeleting(false)
         }

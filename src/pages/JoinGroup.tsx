@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/react'
+
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -56,7 +56,6 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
                     } else {
                         setState('error')
                         logger.error('Erro ao entrar no grupo via RPC', joinErr)
-                        Sentry.captureException(joinErr, { tags: { context: 'JoinGroup.rpc' } })
                     }
                     return
                 }

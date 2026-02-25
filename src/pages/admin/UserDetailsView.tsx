@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Shield, Star, Calendar, Loader2, Save, Trash2, Hash, Smartphone, MapPin, Inbox, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 
 interface Props {
     userId: string
@@ -75,7 +74,6 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
 
         } catch (err) {
             logger.error('Erro ao buscar dados do usuário', err)
-            Sentry.captureException(err)
         } finally {
             setLoading(false)
         }
@@ -108,7 +106,6 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
             setUser(prev => prev ? { ...prev, globalScore: newScore, mainPosition: position } : null)
         } catch (err) {
             logger.error('Erro ao atualizar perfil', err)
-            Sentry.captureException(err)
         } finally {
             setSaving(false)
         }
@@ -129,7 +126,6 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
             setMembershipToRemove(null)
         } catch (err) {
             logger.error('Erro ao remover usuário do grupo', err)
-            Sentry.captureException(err)
         } finally {
             setRemovingGroupId(null)
         }

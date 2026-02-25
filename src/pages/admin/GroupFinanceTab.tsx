@@ -151,7 +151,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
 
     function openWhatsApp(phone: string, matchTitle: string) {
         const text = encodeURIComponent(`Olá! Sou o admin do Borafut. Estou conferindo os pagamentos para a partida "${matchTitle}" e ainda não identifiquei o seu Pix. Poderia me enviar o comprovante?`)
-        window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${text}`, '_blank')
+        window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${text}`, '_blank', 'noopener,noreferrer')
     }
 
     return (

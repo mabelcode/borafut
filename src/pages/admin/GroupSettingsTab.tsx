@@ -122,7 +122,20 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
         )
     }
 
-    if (!group) return null
+    if (!group) {
+        return (
+            <div className="p-12 text-center flex flex-col items-center gap-4 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 m-4">
+                <p className="text-sm text-secondary-text">Não foi possível carregar os dados do grupo.</p>
+                <button
+                    onClick={fetchGroupData}
+                    className="text-sm font-semibold text-brand-green hover:underline flex items-center gap-2"
+                >
+                    <RefreshCw size={14} />
+                    Tentar novamente
+                </button>
+            </div>
+        )
+    }
 
     const inviteUrl = `${window.location.origin}?token=${group.inviteToken}`
     const isExpired = group.inviteExpiresAt && new Date(group.inviteExpiresAt) < new Date()

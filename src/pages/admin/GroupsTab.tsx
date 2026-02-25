@@ -160,7 +160,7 @@ export default function GroupsTab({ onSelectGroup }: Props) {
     )
 
     return (
-        <div className="p-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
             {/* Search & Add */}
             <div className="flex gap-2">
                 <div className="relative flex-1">

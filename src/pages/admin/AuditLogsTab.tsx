@@ -60,7 +60,7 @@ export default function AuditLogsTab() {
     }
 
     return (
-        <div className="p-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
             {loading ? (
                 <div className="flex justify-center py-10">
                     <Loader2 size={24} className="animate-spin text-secondary-text" />

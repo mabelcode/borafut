@@ -108,17 +108,18 @@ export default function AdminSettings({ session, adminGroups, onBack }: Props) {
     const isExpired = inviteExpiresAt && new Date(inviteExpiresAt) < new Date()
 
     return (
-        <div className="flex flex-col gap-6 animate-fade-in">
-            <header className="flex items-center gap-3 pt-2">
+        <div className="flex flex-col gap-6 animate-fade-in px-6 py-4">
+            <header className="flex items-center gap-4 mt-2 mb-1">
                 <button
                     onClick={onBack}
-                    className="size-9 rounded-xl bg-surface border border-gray-200 flex items-center justify-center text-secondary-text hover:text-primary-text transition-all duration-150 active:scale-95 shadow-sm shrink-0"
+                    className="size-10 rounded-2xl bg-surface border border-gray-100 flex items-center justify-center text-secondary-text hover:text-primary-text hover:border-gray-200 transition-all duration-150 active:scale-95 shadow-sm shrink-0"
+                    aria-label="Voltar"
                 >
-                    <ArrowLeft size={18} />
+                    <ArrowLeft size={20} />
                 </button>
-                <div>
-                    <h1 className="text-lg font-bold text-primary-text leading-tight">Configurações</h1>
-                    <p className="text-xs text-secondary-text">Admin{activeGroup ? ` · ${activeGroup.groupName}` : ''}</p>
+                <div className="min-w-0">
+                    <h1 className="text-xl font-bold text-primary-text leading-tight truncate">Configurações</h1>
+                    <p className="text-xs text-secondary-text font-medium opacity-80">Admin{activeGroup ? ` · ${activeGroup.groupName}` : ''}</p>
                 </div>
             </header>
 

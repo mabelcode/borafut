@@ -137,7 +137,7 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
     const isExpired = group.inviteExpiresAt && new Date(group.inviteExpiresAt) < new Date()
 
     return (
-        <div className="p-4 flex flex-col gap-6 animate-fade-in pb-20">
+        <div className="flex flex-col gap-6 animate-fade-in pb-20">
             {/* Identity Card */}
             <div className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-2">

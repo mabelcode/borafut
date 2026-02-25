@@ -309,21 +309,21 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
     const pendingReserved = data.registrations.filter(r => r.status === 'RESERVED')
 
     return (
-        <div className="flex flex-col gap-5 animate-fade-in">
+        <div className="flex flex-col gap-5 animate-fade-in px-6 py-4">
             {/* Header */}
-            <header className="flex items-center gap-3 pt-2">
+            <header className="flex items-center gap-4 mt-2 mb-1">
                 <button
                     onClick={onBack}
-                    className="size-9 rounded-xl bg-surface border border-gray-200 flex items-center justify-center text-secondary-text hover:text-primary-text hover:border-gray-300 transition-all duration-150 active:scale-95 shadow-sm shrink-0"
+                    className="size-10 rounded-2xl bg-surface border border-gray-100 flex items-center justify-center text-secondary-text hover:text-primary-text hover:border-gray-200 transition-all duration-150 active:scale-95 shadow-sm shrink-0"
                     aria-label="Voltar"
                 >
-                    <ArrowLeft size={18} />
+                    <ArrowLeft size={20} />
                 </button>
                 <div className="min-w-0">
-                    <h1 className="text-lg font-bold text-primary-text leading-tight truncate">
+                    <h1 className="text-xl font-bold text-primary-text leading-tight truncate">
                         {data.title || 'Partida'}
                     </h1>
-                    <p className="text-xs text-secondary-text capitalize">{formatDate(data.scheduledAt)}</p>
+                    <p className="text-xs text-secondary-text font-medium capitalize opacity-80">{formatDate(data.scheduledAt)}</p>
                 </div>
             </header>
 

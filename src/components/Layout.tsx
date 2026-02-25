@@ -53,7 +53,7 @@ export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, o
             <div className="mx-auto max-w-md flex flex-col min-h-screen relative">
 
                 {/* Top Navigation Bar */}
-                <header className="flex items-center justify-between p-4 sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-gray-50/50 h-16 shrink-0">
+                <header className="flex items-center justify-between pr-4 sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-gray-50/50 h-16 shrink-0">
                     <div className="flex items-center gap-3 overflow-hidden">
                         <button
                             onClick={() => setIsMenuOpen(true)}

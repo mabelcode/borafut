@@ -111,7 +111,7 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
     }
 
     return (
-        <div className="flex flex-col gap-6 animate-fade-in">
+        <div className="flex flex-col gap-6 animate-fade-in px-6 py-4">
             {/* Header */}
             <header className="flex items-center gap-3 pt-2">
                 <button

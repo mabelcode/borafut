@@ -94,7 +94,7 @@ export default function Onboarding({ session, onComplete, onSignOut }: Props) {
     }
 
     return (
-        <div className="flex flex-col gap-8 animate-fade-in">
+        <div className="flex flex-col gap-8 animate-fade-in px-6 py-4">
             {/* Brand + step indicator */}
             <div className="flex flex-col gap-1 pt-2">
                 <BrandLogo size="md" />

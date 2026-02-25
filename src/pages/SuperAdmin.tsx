@@ -60,7 +60,7 @@ export default function SuperAdmin({ onSelectGroup, onSelectUser }: Props) {
             </div>
 
             {/* Content */}
-            <main className="flex-1 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto px-6 py-4">
                 {activeTab === 'groups' && <GroupsTab onSelectGroup={onSelectGroup} />}
                 {activeTab === 'users' && <UsersTab onSelectUser={onSelectUser} />}
                 {activeTab === 'logs' && <AuditLogsTab />}

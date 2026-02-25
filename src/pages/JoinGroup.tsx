@@ -118,7 +118,7 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
     const cfg = configs[state]
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 animate-fade-in px-4 text-center">
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 animate-fade-in px-6 py-4 text-center">
             <div className={`size-20 rounded-3xl ${cfg.color} flex items-center justify-center`}>
                 {cfg.icon}
             </div>

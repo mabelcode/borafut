@@ -140,21 +140,21 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
 
     return (
         <>
-            <div className="flex flex-col gap-6 animate-fade-in">
+            <div className="flex flex-col gap-6 animate-fade-in px-6 py-4">
                 {/* Section title */}
-                <div className="flex items-center justify-between">
-                    <h2 className="text-base font-semibold text-primary-text">Partidas</h2>
+                <div className="flex items-center justify-between mt-2">
+                    <h2 className="text-lg font-bold text-primary-text">Partidas</h2>
                     {isAdminInAnyGroup && (
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide bg-brand-green/10 text-brand-green px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-green/10 text-brand-green px-2.5 py-1 rounded-full border border-brand-green/20">
                                 Admin
                             </span>
                             <button
                                 onClick={onSettings}
-                                className="size-7 flex items-center justify-center rounded-lg text-secondary-text hover:text-primary-text hover:bg-gray-100 transition-colors duration-150"
+                                className="size-8 flex items-center justify-center rounded-xl text-secondary-text hover:text-primary-text hover:bg-gray-100 active:scale-90 transition-all duration-150"
                                 aria-label="Painel do Admin"
                             >
-                                <Settings size={15} />
+                                <Settings size={18} />
                             </button>
                         </div>
                     )}

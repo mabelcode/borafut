@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Users, CircleDollarSign, Shuffle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import BrandLogo from '@/components/BrandLogo'
 
 /* ── Google Icon ─────────────────────────────────────────────────── */
 
@@ -56,20 +57,9 @@ export default function Login() {
 
                 {/* ── Hero ── */}
                 <div className="flex flex-col items-center text-center pt-16 pb-10 gap-4">
-                    {/* Ball icon */}
-                    <div className="relative mb-2">
-                        <img
-                            src="/logo.png"
-                            alt="BoraFut Logo"
-                            className="h-24 w-auto drop-shadow-2xl"
-                        />
-                    </div>
-
-                    <div>
-                        <h1 className="text-5xl font-extrabold tracking-tight text-primary-text hidden">
-                            bora<span className="text-brand-green">fut</span>
-                        </h1>
-                        <p className="text-secondary-text mt-2 text-base leading-relaxed max-w-[260px] mx-auto">
+                    <div className="flex flex-col items-center">
+                        <BrandLogo size="xl" className="drop-shadow-sm" />
+                        <p className="text-secondary-text mt-3 text-base leading-relaxed max-w-[260px] mx-auto">
                             Gerencie peladas como um profissional. Simples, rápido e no celular.
                         </p>
                     </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowRight, Loader2, User, Shield, Sword, Goal, LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import BrandLogo from '@/components/BrandLogo'
 import type { Session } from '@supabase/supabase-js'
 
 /* ── Types ────────────────────────────────────────────────────────── */
@@ -93,11 +94,7 @@ export default function Onboarding({ session, onComplete, onSignOut }: Props) {
         <div className="flex flex-col gap-8 animate-fade-in">
             {/* Brand + step indicator */}
             <div className="flex flex-col gap-1 pt-2">
-                <img
-                    src="/logo.png"
-                    alt="BoraFut Logo"
-                    className="h-10 w-auto"
-                />
+                <BrandLogo size="md" />
                 <p className="text-sm text-secondary-text">Complete seu perfil para começar</p>
             </div>
 

@@ -1,4 +1,5 @@
 import { LogOut, ShieldCheck, Loader2, Menu, X, Home, ChevronRight } from 'lucide-react'
+import BrandLogo from './BrandLogo'
 import { useState, useEffect } from 'react'
 import type { UserProfile } from '@/hooks/useCurrentUser'
 
@@ -66,12 +67,9 @@ export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, c
                         )}
                     </div>
 
-                    <img
-                        src="/logo.png"
-                        alt="BoraFut Logo"
-                        className="h-8 w-auto cursor-pointer"
-                        onClick={onHome}
-                    />
+                    <div className="cursor-pointer active:scale-95 transition-transform duration-150" onClick={onHome}>
+                        <BrandLogo size="md" />
+                    </div>
                 </header>
 
                 {/* Sidebar Drawer Overlay */}

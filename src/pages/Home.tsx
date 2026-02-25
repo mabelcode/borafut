@@ -152,7 +152,7 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
                             <button
                                 onClick={onSettings}
                                 className="size-7 flex items-center justify-center rounded-lg text-secondary-text hover:text-primary-text hover:bg-gray-100 transition-colors duration-150"
-                                aria-label="Configurações"
+                                aria-label="Painel do Admin"
                             >
                                 <Settings size={15} />
                             </button>

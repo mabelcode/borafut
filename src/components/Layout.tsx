@@ -1,4 +1,4 @@
-import { LogOut, ShieldCheck, Loader2, Menu, X, Home, ChevronRight } from 'lucide-react'
+import { LogOut, ShieldCheck, ShieldAlert, Loader2, Menu, X, Home, ChevronRight } from 'lucide-react'
 import BrandLogo from './BrandLogo'
 import { useState, useEffect } from 'react'
 import type { UserProfile } from '@/hooks/useCurrentUser'
@@ -9,10 +9,12 @@ interface Props {
     onHome: () => void
     onSignOut: () => void
     onSuperAdmin: () => void
+    onGroupAdmin: () => void
+    isAdmin?: boolean
     children: React.ReactNode
 }
 
-export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, children }: Props) {
+export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, onGroupAdmin, isAdmin, children }: Props) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [signingOut, setSigningOut] = useState(false)
 
@@ -124,10 +126,23 @@ export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, c
                                 onClick={() => { onSuperAdmin(); setIsMenuOpen(false) }}
                                 className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-sm font-bold text-primary-text hover:bg-gray-50 active:scale-[0.98] transition-all group"
                             >
+                                <div className="size-9 rounded-xl flex items-center justify-center bg-gray-50 text-secondary-text group-hover:bg-brand-red/10 group-hover:text-brand-red transition-colors">
+                                    <ShieldAlert size={18} />
+                                </div>
+                                <span>Painel Super Admin</span>
+                                <ChevronRight size={16} className="ml-auto text-gray-200" />
+                            </button>
+                        )}
+
+                        {isAdmin && (
+                            <button
+                                onClick={() => { onGroupAdmin(); setIsMenuOpen(false) }}
+                                className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-sm font-bold text-primary-text hover:bg-gray-50 active:scale-[0.98] transition-all group"
+                            >
                                 <div className="size-9 rounded-xl flex items-center justify-center bg-gray-50 text-secondary-text group-hover:bg-brand-green/10 group-hover:text-brand-green transition-colors">
                                     <ShieldCheck size={18} />
                                 </div>
-                                <span>Painel Super Admin</span>
+                                <span>Painel do Admin</span>
                                 <ChevronRight size={16} className="ml-auto text-gray-200" />
                             </button>
                         )}

@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase', () => ({
     }
 }))
 
-vi.mock('./pages/Home', () => ({
+vi.mock('@/pages/Home', () => ({
     default: () => <div data-testid="page-home">Home Page</div>
 }))
 

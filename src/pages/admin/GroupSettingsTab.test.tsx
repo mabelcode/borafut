@@ -21,7 +21,9 @@ describe('GroupSettingsTab Component', () => {
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
                 single: vi.fn().mockResolvedValue({ data: mockGroupData, error: null }),
-                update: vi.fn().mockResolvedValue({ error: null })
+                update: vi.fn().mockReturnValue({
+                    eq: vi.fn().mockResolvedValue({ error: null })
+                })
             })
     })
 
@@ -35,7 +37,9 @@ describe('GroupSettingsTab Component', () => {
     })
 
     it('handles group name editing', async () => {
-        const mockUpdate = vi.fn().mockResolvedValue({ error: null })
+        const mockEq = vi.fn().mockResolvedValue({ error: null })
+        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+
             ; (supabase.from as any).mockReturnValue({
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
@@ -56,6 +60,7 @@ describe('GroupSettingsTab Component', () => {
 
         await waitFor(() => {
             expect(mockUpdate).toHaveBeenCalledWith({ name: 'Novo Nome da Pelada' })
+            expect(mockEq).toHaveBeenCalledWith('id', mockGroupId)
         })
     })
 
@@ -79,7 +84,9 @@ describe('GroupSettingsTab Component', () => {
     })
 
     it('handles invite link regeneration', async () => {
-        const mockUpdate = vi.fn().mockResolvedValue({ error: null })
+        const mockEq = vi.fn().mockResolvedValue({ error: null })
+        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+
             ; (supabase.from as any).mockReturnValue({
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
@@ -101,6 +108,7 @@ describe('GroupSettingsTab Component', () => {
                 inviteToken: expect.any(String),
                 inviteExpiresAt: expect.any(String)
             }))
+            expect(mockEq).toHaveBeenCalledWith('id', mockGroupId)
         })
     })
 })

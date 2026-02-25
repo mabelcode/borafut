@@ -34,7 +34,7 @@ export function useCurrentUser() {
             if (!authUser) { setLoading(false); return }
 
             const [profileRes, membershipsRes] = await Promise.all([
-                supabase.from('users').select('*').eq('id', authUser.id).single(),
+                supabase.from('users').select('*').eq('id', authUser.id).maybeSingle(),
                 supabase
                     .from('group_members')
                     .select('role, groupId, groups(id, name, inviteToken, inviteExpiresAt)')

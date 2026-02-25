@@ -43,6 +43,12 @@ function nowLocalDatetime() {
     return now.toISOString().slice(0, 16)
 }
 
+function toLocalDatetimeInput(iso: string) {
+    const d = new Date(iso)
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+}
+
 const STATUS_LABEL: Record<Match['status'], { label: string; className: string }> = {
     OPEN: { label: 'Aberta', className: 'bg-brand-green/10 text-brand-green' },
     CLOSED: { label: 'Fechada', className: 'bg-gray-100 text-secondary-text' },
@@ -96,9 +102,9 @@ export default function GroupMatchesTab({ groupId }: Props) {
     const startEdit = (match: Match) => {
         setEditingMatch(match)
         setTitle(match.title || '')
-        setScheduledAt(new Date(match.scheduledAt).toISOString().slice(0, 16))
+        setScheduledAt(toLocalDatetimeInput(match.scheduledAt))
         setMaxPlayers(String(match.maxPlayers))
-        setPriceRaw(String(match.price * 100))
+        setPriceRaw(String(Math.round(match.price * 100)))
         setIsModalOpen(true)
     }
 

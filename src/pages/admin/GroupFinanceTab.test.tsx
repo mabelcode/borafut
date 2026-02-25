@@ -68,14 +68,27 @@ describe('GroupFinanceTab Component', () => {
     })
 
     it('handles PIX key update', async () => {
-        const mockUpdate = vi.fn().mockReturnThis()
-            ; (supabase.from as any).mockReturnValue({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                single: vi.fn().mockResolvedValue({ data: { pixKey: 'test@pix.com' }, error: null }),
-                update: mockUpdate,
-                then: (onSuccess: any) => onSuccess({ error: null })
+        const mockEq = vi.fn().mockResolvedValue({ error: null })
+        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+
+            ; (supabase.from as any).mockImplementation((table: string) => {
+                if (table === 'users') {
+                    return {
+                        select: vi.fn().mockReturnThis(),
+                        eq: vi.fn().mockReturnThis(),
+                        single: vi.fn().mockResolvedValue({ data: { pixKey: 'test@pix.com' }, error: null }),
+                        update: mockUpdate
+                    }
+                }
+                return {
+                    select: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    then: (onSuccess: any) => onSuccess({ data: mockPendingRegs, error: null })
+                }
             })
+
+            // Mock auth.getUser to return a consistent ID
+            ; (supabase.auth.getUser as any).mockResolvedValue({ data: { user: { id: 'admin-123' } } })
 
         render(<GroupFinanceTab groupId={mockGroupId} />)
 
@@ -86,6 +99,7 @@ describe('GroupFinanceTab Component', () => {
 
         await waitFor(() => {
             expect(mockUpdate).toHaveBeenCalledWith({ pixKey: 'updated@pix.com' })
+            expect(mockEq).toHaveBeenCalledWith('id', 'admin-123')
         })
     })
 

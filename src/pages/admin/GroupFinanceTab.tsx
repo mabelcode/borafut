@@ -26,6 +26,7 @@ interface PendingRegistration {
 
 export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
     const [pixKey, setPixKey] = useState('')
+    const [initialPixKey, setInitialPixKey] = useState('')
     const [savingPix, setSavingPix] = useState(false)
     const [savedPix, setSavedPix] = useState(false)
     const [pendingRegs, setPendingRegs] = useState<PendingRegistration[]>([])
@@ -44,7 +45,10 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                     .select('pixKey')
                     .eq('id', user.id)
                     .single()
-                if (userData?.pixKey) setPixKey(userData.pixKey)
+                if (userData?.pixKey) {
+                    setPixKey(userData.pixKey)
+                    setInitialPixKey(userData.pixKey)
+                }
             }
 
             // Fetch Pending Registrations for this group
@@ -90,6 +94,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                 .eq('id', user.id)
 
             if (error) throw error
+            setInitialPixKey(pixKey.trim())
             setSavedPix(true)
             setTimeout(() => setSavedPix(false), 3000)
         } catch (err) {
@@ -147,8 +152,9 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                     />
                     <button
                         onClick={handleSavePix}
-                        disabled={savingPix || !pixKey.trim()}
-                        className={`px-4 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-2 ${savedPix ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-green text-white shadow-sm shadow-brand-green/20'
+                        disabled={savingPix || !pixKey.trim() || pixKey.trim() === initialPixKey}
+                        className={`px-4 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-2 ${savedPix ? 'bg-brand-green/10 text-brand-green' :
+                            (pixKey.trim() === initialPixKey || !pixKey.trim()) ? 'bg-gray-100 text-gray-400' : 'bg-brand-green text-white shadow-sm shadow-brand-green/20'
                             }`}
                     >
                         {savingPix ? <Loader2 size={14} className="animate-spin" /> : savedPix ? <CheckCircle2 size={14} /> : 'Salvar'}

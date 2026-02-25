@@ -33,14 +33,10 @@ BEGIN
         RAISE EXCEPTION 'Link de convite expirado';
     END IF;
 
-    -- Check if already a member to avoid unique constraint error
-    IF EXISTS (SELECT 1 FROM group_members WHERE "groupId" = v_group_id AND "userId" = v_user_id) THEN
-        RETURN;
-    END IF;
-
-    -- Join group
+    -- Join group (atomic)
     INSERT INTO group_members ("groupId", "userId", role)
-    VALUES (v_group_id, v_user_id, 'PLAYER');
+    VALUES (v_group_id, v_user_id, 'PLAYER')
+    ON CONFLICT ("groupId", "userId") DO NOTHING;
 END;
 $$;
 

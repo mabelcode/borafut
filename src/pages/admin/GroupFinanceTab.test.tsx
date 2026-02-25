@@ -68,12 +68,13 @@ describe('GroupFinanceTab Component', () => {
     })
 
     it('handles PIX key update', async () => {
-        const mockUpdate = vi.fn().mockResolvedValue({ error: null })
+        const mockUpdate = vi.fn().mockReturnThis()
             ; (supabase.from as any).mockReturnValue({
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
                 single: vi.fn().mockResolvedValue({ data: { pixKey: 'test@pix.com' }, error: null }),
-                update: mockUpdate
+                update: mockUpdate,
+                then: (onSuccess: any) => onSuccess({ error: null })
             })
 
         render(<GroupFinanceTab groupId={mockGroupId} />)
@@ -101,7 +102,8 @@ describe('GroupFinanceTab Component', () => {
             if (table === 'match_registrations') {
                 return {
                     select: vi.fn().mockReturnThis(),
-                    eq: vi.fn().mockResolvedValue({ data: mockPendingRegs, error: null })
+                    eq: vi.fn().mockReturnThis(),
+                    then: (onSuccess: any) => onSuccess({ data: mockPendingRegs, error: null })
                 }
             }
         })

@@ -51,23 +51,22 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                 }
             }
 
-            // Fetch Pending Registrations for this group
+            // Fetch Pending Registrations for this group using server-side filtering
             const { data: regsData, error: regsError } = await supabase
                 .from('match_registrations')
                 .select(`
                     id,
                     matchId,
                     status,
-                    match:matches(title, scheduledAt, groupId),
+                    match:matches!inner(title, scheduledAt, groupId),
                     user:users(id, displayName, phoneNumber)
                 `)
                 .eq('status', 'RESERVED')
+                .eq('match.groupId', groupId)
 
             if (regsError) throw regsError
 
-            // Filter by groupId manually since the nested filter in Supabase select is tricky
-            const filtered = (regsData as any[] || []).filter(r => r.match?.groupId === groupId)
-            setPendingRegs(filtered)
+            setPendingRegs(regsData as any[] || [])
 
         } catch (err) {
             logger.error('Erro ao buscar dados financeiros do grupo', err)

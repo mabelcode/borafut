@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Loader2, CheckCircle2, QrCode, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import * as Sentry from '@sentry/react'
 
 interface GroupFinanceTabProps {
     groupId: string
@@ -94,7 +93,6 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
 
         } catch (err) {
             logger.error('Erro ao buscar dados financeiros do grupo', err)
-            Sentry.captureException(err)
         } finally {
             setLoadingRegs(false)
         }
@@ -122,7 +120,6 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
             setTimeout(() => setSavedPix(false), 3000)
         } catch (err) {
             logger.error('Erro ao salvar chave Pix', err)
-            Sentry.captureException(err)
         } finally {
             setSavingPix(false)
         }
@@ -131,19 +128,21 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
     async function handleConfirmPayment(regId: string) {
         try {
             setConfirmingId(regId)
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('match_registrations')
                 .update({ status: 'CONFIRMED' })
                 .eq('id', regId)
                 .eq('status', 'RESERVED')
+                .select('id')
 
             if (error) throw error
 
-            setPendingRegs(prev => prev.filter(r => r.id !== regId))
-            logger.info('Pagamento confirmado pelo Group Admin', { regId })
+            if (data && data.length > 0) {
+                setPendingRegs(prev => prev.filter(r => r.id !== regId))
+                logger.info('Pagamento confirmado pelo Group Admin', { regId })
+            }
         } catch (err) {
             logger.error('Erro ao confirmar pagamento', err)
-            Sentry.captureException(err)
         } finally {
             setConfirmingId(null)
         }

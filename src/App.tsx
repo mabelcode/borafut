@@ -146,7 +146,7 @@ export function AppInner({
         }
       })
     }
-  }, [loading, groups, inviteToken, appState])
+  }, [loading, groups, inviteToken, appState, isAdminInAnyGroup, user])
 
   // Sync URL with appState
   useEffect(() => {

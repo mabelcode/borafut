@@ -131,36 +131,32 @@ describe('GroupFinanceTab Component', () => {
     })
 
     it('applies status guard when confirming payment', async () => {
-        const mockEq = vi.fn().mockReturnThis()
-        const mockUpdate = vi.fn().mockReturnThis()
-        const mockThen = vi.fn((onSuccess) => onSuccess({ error: null }))
+        const mockEqRegId = vi.fn().mockReturnThis()
+        const mockEqStatus = vi.fn().mockReturnThis()
+        const mockSelect = vi.fn().mockResolvedValue({ data: [{ id: 'reg-1' }], error: null })
+        const mockUpdate = vi.fn().mockReturnValue({
+            eq: mockEqRegId.mockReturnValue({
+                eq: mockEqStatus.mockReturnValue({
+                    select: mockSelect
+                })
+            })
+        })
 
             ; (supabase.from as any).mockImplementation((table: string) => {
-                if (table === 'users') {
-                    return {
-                        select: vi.fn().mockReturnThis(),
-                        eq: vi.fn().mockReturnThis(),
-                        single: vi.fn().mockResolvedValue({ data: { pixKey: 'test@pix.com' } })
-                    }
-                }
                 if (table === 'match_registrations') {
                     return {
                         select: vi.fn().mockReturnThis(),
                         eq: vi.fn().mockReturnThis(),
                         update: mockUpdate,
-                        then: (onSuccess: any) => onSuccess({ data: mockPendingRegs, error: null })
+                        then: (cb: any) => cb({ data: mockPendingRegs, error: null })
                     }
                 }
+                return {
+                    select: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: { pixKey: 'test@pix.com' } })
+                }
             })
-
-        // Re-mock separate chain for handleConfirmPayment
-        mockUpdate.mockReturnValue({
-            eq: mockEq,
-        })
-        mockEq.mockReturnValue({
-            eq: mockEq,
-            then: mockThen
-        })
 
         render(<GroupFinanceTab groupId={mockGroupId} />)
 
@@ -169,8 +165,9 @@ describe('GroupFinanceTab Component', () => {
 
         await waitFor(() => {
             expect(mockUpdate).toHaveBeenCalledWith({ status: 'CONFIRMED' })
-            expect(mockEq).toHaveBeenCalledWith('status', 'RESERVED')
-            expect(mockEq).toHaveBeenCalledWith('id', 'reg-1')
+            expect(mockEqRegId).toHaveBeenCalledWith('id', 'reg-1')
+            expect(mockEqStatus).toHaveBeenCalledWith('status', 'RESERVED')
+            expect(mockSelect).toHaveBeenCalledWith('id')
         })
     })
 })

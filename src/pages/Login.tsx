@@ -129,7 +129,7 @@ export default function Login() {
 
                 {/* ── Footer ── */}
                 <p className="text-center text-[10px] text-secondary-text mt-auto pt-10 opacity-50">
-                    borafut © 2026 · Feito para quem ama uma pelada
+                    BoraFut © 2026 · Feito para quem ama uma pelada
                 </p>
             </div>
         </div>

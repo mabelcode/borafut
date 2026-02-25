@@ -24,7 +24,7 @@
 | Autenticação | **Supabase Auth** — Google OAuth |
 | Pagamentos | **Pix Manual** — `qrcode-pix` + `react-qr-code` (100% frontend) |
 | Observabilidade | **Sentry** — erros, performance e rastreamento de sessão |
-| Testes | **Vitest** (unit) + **Playwright** (integração/e2e) |
+| Testes | **Vitest** (unit) |
 | Ícones | lucide-react |
 | Fonte | Inter (Google Fonts) |
 
@@ -139,14 +139,6 @@ Acessível via ícone 🛡 no header da Home (visível apenas para `isSuperAdmin
 - Hooks: `useCurrentUser`, `useMatches` (com mock do Supabase client)
 - Arquivo de configuração: `vitest.config.ts`
 
-### Integração/E2E — Playwright
-- Fluxo de login (Google OAuth mockado)
-- Fluxo de onboarding
-- Reserva de vaga + QR Code
-- Confirmação de pagamento pelo admin
-- Criação de partida
-- Entrada via link de convite
-- Painel Super Admin: criar grupo, promover usuário
 
 ---
 
@@ -258,7 +250,6 @@ audit_log (
 ### Testes e Cobertura
 - **Obrigatório:** Todo novo código (componentes, hooks, utilitários) deve vir acompanhado de testes.
 - **Unitários (Vitest):** Devem cobrir lógica de negócio, transformações de dados e estados de componentes básicos.
-- **Integração/E2E (Playwright):** Devem cobrir fluxos críticos (ex: criar partida, pagar Pix) que interagem com o sistema de ponta a ponta.
 - **Cobertura de Linhas:** Alvo mínimo de 80% em lógica de negócio (`src/lib`, `src/hooks`).
 
 ### Logging e Observabilidade

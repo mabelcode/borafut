@@ -78,8 +78,7 @@ const STATE_TITLES: Record<AppState, string | undefined> = {
   'onboarding': 'Seja bem-vindo',
 }
 
-// Inner component that has access to useCurrentUser
-function AppInner({
+export function AppInner({
   session,
   inviteToken,
   initialAppState,
@@ -111,19 +110,31 @@ function AppInner({
           // Allow restoring state from URL if valid
           if (pageFromUrl === 'super-admin-group') {
             const groupId = params.get('groupId')
-            if (groupId) {
+            if (user?.isSuperAdmin && groupId) {
               setSelectedGroupId(groupId)
               setAppState('super-admin-group')
             } else {
-              setAppState('super-admin')
+              setAppState('home')
             }
           } else if (pageFromUrl === 'super-admin-user') {
             const userId = params.get('userId')
-            if (userId) {
+            if (user?.isSuperAdmin && userId) {
               setSelectedUserId(userId)
               setAppState('super-admin-user')
             } else {
+              setAppState('home')
+            }
+          } else if (pageFromUrl === 'super-admin') {
+            if (user?.isSuperAdmin) {
               setAppState('super-admin')
+            } else {
+              setAppState('home')
+            }
+          } else if (pageFromUrl === 'group-admin') {
+            if (isAdminInAnyGroup) {
+              setAppState('group-admin')
+            } else {
+              setAppState('home')
             }
           } else {
             setAppState(pageFromUrl)
@@ -285,7 +296,7 @@ function AppInner({
         />
       )}
 
-      {appState === 'group-admin' && (
+      {appState === 'group-admin' && isAdminInAnyGroup && (
         <GroupAdmin
           groupId={selectedGroupId || activeAdminGroupId}
           onBack={() => setAppState('home')}

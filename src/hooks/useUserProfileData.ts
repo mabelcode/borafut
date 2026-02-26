@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 
@@ -20,19 +20,13 @@ export interface ProfileMatch {
 }
 
 export function useUserProfileData(userId?: string) {
-    const [groups, setGroups] = useState<ProfileGroup[]>([])
-    const [history, setHistory] = useState<ProfileMatch[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const queryClient = useQueryClient()
 
-    const fetchData = useCallback(async () => {
-        if (!userId) {
-            setLoading(false)
-            return
-        }
-        setLoading(true)
-        setError(null)
-        try {
+    const { data, isLoading: loading, error: queryError, refetch: fetchData } = useQuery({
+        queryKey: ['userProfile', userId],
+        // Set enabled: !!userId so it doesn't fetch if no user is passed
+        enabled: !!userId,
+        queryFn: async () => {
             // 1. Fetch User Groups (where they are a member)
             const { data: groupData, error: groupErr } = await supabase
                 .from('group_members')
@@ -53,8 +47,6 @@ export function useUserProfileData(userId?: string) {
                 role: gm.role,
                 joinedAt: gm.joinedAt
             }))
-
-            setGroups(formattedGroups)
 
             // 2. Fetch Match History (Registrations where status === 'CONFIRMED')
             // Limited to the last 10 for the profile page
@@ -79,23 +71,17 @@ export function useUserProfileData(userId?: string) {
                 groupName: reg.matches.groups.name
             }))
 
-            setHistory(formattedHistory)
-
-        } catch (err: any) {
-            logger.error('Error fetching user profile data', err)
-            setError(err.message || 'Erro ao carregar os dados do perfil')
-        } finally {
-            setLoading(false)
+            return { groups: formattedGroups, history: formattedHistory }
         }
-    }, [userId])
+    })
 
-    useEffect(() => {
-        fetchData()
-    }, [fetchData])
+    const groups = data?.groups ?? []
+    const history = data?.history ?? []
+    const error = queryError ? queryError.message : null
 
-    const leaveGroup = useCallback(async (groupId: string) => {
-        if (!userId) return false
-        try {
+    const leaveGroupMutation = useMutation({
+        mutationFn: async (groupId: string) => {
+            if (!userId) throw new Error('No userId provided')
             const { error: err } = await supabase
                 .from('group_members')
                 .delete()
@@ -103,18 +89,33 @@ export function useUserProfileData(userId?: string) {
                 .eq('userId', userId)
 
             if (err) throw err
-            setGroups(prev => prev.filter(g => g.id !== groupId))
+            return groupId
+        },
+        onSuccess: (groupId) => {
             logger.info('User left group', { groupId, userId })
-
-            // Optional: Also remove from match history for that group if required, 
-            // but usually history is kept. We'll leave history intact for now.
-            return true
-        } catch (err: any) {
+            queryClient.setQueryData(['userProfile', userId], (oldData: any) => {
+                if (!oldData) return oldData
+                return {
+                    ...oldData,
+                    groups: oldData.groups.filter((g: any) => g.id !== groupId)
+                }
+            })
+            // We also invalidate currentUser to reflect the left group in Admin access right away
+            queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+        },
+        onError: (err: any, groupId) => {
             logger.error('Error leaving group', { groupId, error: err })
-            setError(err.message || 'Erro ao sair do grupo')
+        }
+    })
+
+    const leaveGroup = async (groupId: string) => {
+        try {
+            await leaveGroupMutation.mutateAsync(groupId)
+            return true
+        } catch {
             return false
         }
-    }, [userId])
+    }
 
     return {
         groups,

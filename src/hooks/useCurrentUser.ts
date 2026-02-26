@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 
@@ -24,14 +24,13 @@ export interface GroupMembership {
 }
 
 export function useCurrentUser() {
-    const [user, setUser] = useState<UserProfile | null>(null)
-    const [groups, setGroups] = useState<GroupMembership[]>([])
-    const [loading, setLoading] = useState(true)
+    const queryClient = useQueryClient()
 
-    async function fetchUser() {
-        try {
+    const { data, isLoading: loading, refetch } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: async () => {
             const { data: { user: authUser } } = await supabase.auth.getUser()
-            if (!authUser) { setLoading(false); return }
+            if (!authUser) return { user: null, groups: [], authUser: null }
 
             const [profileRes, membershipsRes] = await Promise.all([
                 supabase.from('users').select('*').eq('id', authUser.id).maybeSingle(),
@@ -43,8 +42,6 @@ export function useCurrentUser() {
 
             if (profileRes.error) logger.error('Erro ao buscar perfil do usuário', profileRes.error)
             if (membershipsRes.error) logger.error('Erro ao buscar memberships', membershipsRes.error)
-
-            setUser(profileRes.data ?? null)
 
             const rawMemberships = (membershipsRes.data ?? []) as unknown as {
                 role: 'ADMIN' | 'PLAYER'
@@ -63,30 +60,50 @@ export function useCurrentUser() {
                 inviteToken: m.groups.inviteToken,
                 inviteExpiresAt: m.groups.inviteExpiresAt,
             }))
-            setGroups(memberships)
-        } catch (err) {
-            logger.error('Erro inesperado ao buscar dados do usuário', err)
-        } finally {
-            setLoading(false)
+
+            return {
+                user: (profileRes.data ?? null) as UserProfile | null,
+                groups: memberships,
+                authUser,
+            }
         }
-    }
+    })
 
-    useEffect(() => { fetchUser() }, [])
+    const user = data?.user ?? null
+    const groups = data?.groups ?? []
+    const authUser = data?.authUser ?? null
 
-    async function updateProfile(updates: Partial<Omit<UserProfile, 'id' | 'createdAt' | 'isSuperAdmin'>>) {
-        if (!user) return false
-        try {
+    const updateProfileMutation = useMutation({
+        mutationFn: async (updates: Partial<Omit<UserProfile, 'id' | 'createdAt' | 'isSuperAdmin'>>) => {
+            if (!user) throw new Error('No user data')
             const { error: err } = await supabase
                 .from('users')
                 .update(updates)
                 .eq('id', user.id)
 
             if (err) throw err
-            setUser({ ...user, ...updates })
+            return updates
+        },
+        onSuccess: (updates) => {
             logger.info('User profile updated successfully')
-            return true
-        } catch (err: any) {
+            queryClient.setQueryData(['currentUser'], (oldData: any) => {
+                if (!oldData || !oldData.user) return oldData
+                return {
+                    ...oldData,
+                    user: { ...oldData.user, ...updates }
+                }
+            })
+        },
+        onError: (err) => {
             logger.error('Error updating user profile', err)
+        }
+    })
+
+    const updateProfile = async (updates: Partial<Omit<UserProfile, 'id' | 'createdAt' | 'isSuperAdmin'>>) => {
+        try {
+            await updateProfileMutation.mutateAsync(updates)
+            return true
+        } catch {
             return false
         }
     }
@@ -95,5 +112,5 @@ export function useCurrentUser() {
     const isAdminInAnyGroup = user?.isSuperAdmin || groups.some(g => g.role === 'ADMIN')
     const adminGroups = user?.isSuperAdmin ? groups : groups.filter(g => g.role === 'ADMIN')
 
-    return { user, groups, loading, isAdminInAnyGroup, adminGroups, refetch: fetchUser, updateProfile }
+    return { user, groups, authUser, loading, isAdminInAnyGroup, adminGroups, refetch, updateProfile }
 }

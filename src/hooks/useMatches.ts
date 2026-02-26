@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { logger } from '@/lib/logger'
 
 export interface Match {
     id: string
@@ -15,15 +14,9 @@ export interface Match {
 }
 
 export function useMatches(groupId?: string) {
-    const [matches, setMatches] = useState<Match[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-
-    async function fetchMatches() {
-        setLoading(true)
-        setError(null)
-
-        try {
+    const { data: matches, isLoading: loading, error: queryError, refetch } = useQuery({
+        queryKey: ['matches', groupId],
+        queryFn: async () => {
             let query = supabase
                 .from('matches')
                 .select('*')
@@ -34,19 +27,12 @@ export function useMatches(groupId?: string) {
             }
 
             const { data, error } = await query
-
             if (error) throw error
-            setMatches(data ?? [])
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Erro desconhecido ao buscar partidas'
-            logger.error('Erro ao buscar partidas', err)
-            setError(msg)
-        } finally {
-            setLoading(false)
+            return data as Match[]
         }
-    }
+    })
 
-    useEffect(() => { fetchMatches() }, [groupId])
+    const error = queryError ? queryError.message : null
 
-    return { matches, loading, error, refetch: fetchMatches }
+    return { matches: matches ?? [], loading, error, refetch }
 }

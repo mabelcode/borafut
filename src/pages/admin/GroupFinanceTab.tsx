@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, CheckCircle2, QrCode, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 interface GroupFinanceTabProps {
     groupId: string
@@ -41,33 +43,24 @@ interface SupabasePendingRegistration {
 }
 
 export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
-    const [pixKey, setPixKey] = useState('')
-    const [initialPixKey, setInitialPixKey] = useState('')
-    const [savingPix, setSavingPix] = useState(false)
+    const queryClient = useQueryClient()
+    const { user, updateProfile } = useCurrentUser()
+    const initialPixFromUser = user?.pixKey ?? ''
+
+    const [pixKey, setPixKey] = useState(initialPixFromUser)
     const [savedPix, setSavedPix] = useState(false)
-    const [pendingRegs, setPendingRegs] = useState<PendingRegistration[]>([])
-    const [loadingRegs, setLoadingRegs] = useState(true)
-    const [confirmingId, setConfirmingId] = useState<string | null>(null)
+    const [savingPix, setSavingPix] = useState(false)
 
-    async function fetchFinanceData() {
-        try {
-            setLoadingRegs(true)
+    // Sync pixKey if currentUser changes externally
+    useEffect(() => {
+        if (user?.pixKey !== undefined) {
+            setPixKey(user.pixKey ?? '')
+        }
+    }, [user?.pixKey])
 
-            // Fetch Group Pix Key
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('pixKey')
-                    .eq('id', user.id)
-                    .single()
-                if (userData?.pixKey) {
-                    setPixKey(userData.pixKey)
-                    setInitialPixKey(userData.pixKey)
-                }
-            }
-
-            // Fetch Pending Registrations for this group using server-side filtering
+    const { data: pendingRegs, isLoading: loadingRegs } = useQuery({
+        queryKey: ['adminGroupFinance', groupId],
+        queryFn: async () => {
             const { data: regsData, error: regsError } = await supabase
                 .from('match_registrations')
                 .select(`
@@ -82,53 +75,19 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
 
             if (regsError) throw regsError
 
-            // Type guard to ensure data integrity
             const rawRegs = (regsData as unknown as SupabasePendingRegistration[]) || []
-            const validatedRegs: PendingRegistration[] = rawRegs
+            const validatedRegs = rawRegs
                 .filter((r): r is SupabasePendingRegistration & { match: { title: string; scheduledAt: string }; user: { displayName: string | null; phoneNumber: string } } =>
                     !!r.match && !!r.user && !!r.user.phoneNumber
                 ) as unknown as PendingRegistration[]
 
-            setPendingRegs(validatedRegs)
-
-        } catch (err) {
-            logger.error('Erro ao buscar dados financeiros do grupo', err)
-        } finally {
-            setLoadingRegs(false)
+            return validatedRegs
         }
-    }
+    })
 
-    useEffect(() => {
-        fetchFinanceData()
-    }, [groupId])
-
-    async function handleSavePix() {
-        if (!pixKey.trim()) return
-        try {
-            setSavingPix(true)
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-
+    const confirmPaymentMutation = useMutation({
+        mutationFn: async (regId: string) => {
             const { error } = await supabase
-                .from('users')
-                .update({ pixKey: pixKey.trim() })
-                .eq('id', user.id)
-
-            if (error) throw error
-            setInitialPixKey(pixKey.trim())
-            setSavedPix(true)
-            setTimeout(() => setSavedPix(false), 3000)
-        } catch (err) {
-            logger.error('Erro ao salvar chave Pix', err)
-        } finally {
-            setSavingPix(false)
-        }
-    }
-
-    async function handleConfirmPayment(regId: string) {
-        try {
-            setConfirmingId(regId)
-            const { data, error } = await supabase
                 .from('match_registrations')
                 .update({ status: 'CONFIRMED' })
                 .eq('id', regId)
@@ -136,16 +95,28 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                 .select('id')
 
             if (error) throw error
+            return regId
+        },
+        onSuccess: (regId) => {
+            logger.info('Pagamento confirmado pelo Group Admin', { regId })
+            queryClient.invalidateQueries({ queryKey: ['adminGroupFinance', groupId] })
+        },
+        onError: (err) => logger.error('Erro ao confirmar pagamento', err)
+    })
 
-            if (data && data.length > 0) {
-                setPendingRegs(prev => prev.filter(r => r.id !== regId))
-                logger.info('Pagamento confirmado pelo Group Admin', { regId })
-            }
-        } catch (err) {
-            logger.error('Erro ao confirmar pagamento', err)
-        } finally {
-            setConfirmingId(null)
+    async function handleSavePix() {
+        if (!pixKey.trim()) return
+        setSavingPix(true)
+        const success = await updateProfile({ pixKey: pixKey.trim() })
+        setSavingPix(false)
+        if (success) {
+            setSavedPix(true)
+            setTimeout(() => setSavedPix(false), 3000)
         }
+    }
+
+    function handleConfirmPayment(regId: string) {
+        confirmPaymentMutation.mutate(regId)
     }
 
     function openWhatsApp(phone: string, matchTitle: string) {
@@ -175,9 +146,9 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                     />
                     <button
                         onClick={handleSavePix}
-                        disabled={savingPix || !pixKey.trim() || pixKey.trim() === initialPixKey}
+                        disabled={savingPix || !pixKey.trim() || pixKey.trim() === initialPixFromUser}
                         className={`px-4 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-2 ${savedPix ? 'bg-brand-green/10 text-brand-green' :
-                            (pixKey.trim() === initialPixKey || !pixKey.trim()) ? 'bg-gray-100 text-gray-400' : 'bg-brand-green text-white shadow-sm shadow-brand-green/20'
+                            (pixKey.trim() === initialPixFromUser || !pixKey.trim()) ? 'bg-gray-100 text-gray-400' : 'bg-brand-green text-white shadow-sm shadow-brand-green/20'
                             }`}
                     >
                         {savingPix ? <Loader2 size={14} className="animate-spin" /> : savedPix ? <CheckCircle2 size={14} /> : 'Salvar'}
@@ -190,7 +161,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                 <div className="flex items-center justify-between px-1">
                     <h3 className="text-sm font-bold text-primary-text uppercase tracking-widest">Aguardando Confirmação</h3>
                     <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                        {pendingRegs.length} Pendentes
+                        {(pendingRegs ?? []).length} Pendentes
                     </span>
                 </div>
 
@@ -198,13 +169,13 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                     <div className="flex justify-center py-10">
                         <Loader2 size={24} className="animate-spin text-secondary-text" />
                     </div>
-                ) : pendingRegs.length === 0 ? (
+                ) : (pendingRegs ?? []).length === 0 ? (
                     <div className="text-center py-12 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
                         <p className="text-sm text-secondary-text">Tudo em dia! Nenhum Pix pendente.</p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-3">
-                        {pendingRegs.map((reg) => (
+                        {(pendingRegs ?? []).map((reg) => (
                             <div key={reg.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-center gap-3">
@@ -225,10 +196,10 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                                 <div className="flex gap-2 pt-1">
                                     <button
                                         onClick={() => handleConfirmPayment(reg.id)}
-                                        disabled={confirmingId === reg.id}
+                                        disabled={confirmPaymentMutation.isPending && confirmPaymentMutation.variables === reg.id}
                                         className="flex-1 bg-brand-green/10 text-brand-green py-2.5 rounded-xl text-[11px] font-bold hover:bg-brand-green hover:text-white transition-all active:scale-95 flex items-center justify-center gap-1.5 border border-brand-green/10"
                                     >
-                                        {confirmingId === reg.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                        {(confirmPaymentMutation.isPending && confirmPaymentMutation.variables === reg.id) ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                         CONFIRMAR PIX
                                     </button>
                                     <button

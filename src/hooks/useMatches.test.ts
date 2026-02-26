@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor } from '@/test/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useMatches } from './useMatches'
 import { supabase } from '@/lib/supabase'

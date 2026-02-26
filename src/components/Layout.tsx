@@ -12,9 +12,10 @@ interface Props {
     onGroupAdmin: () => void
     onProfile: () => void
     isAdmin?: boolean
+    authMeta?: { avatar_url?: string } | null
     children: React.ReactNode
 }
-export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, onGroupAdmin, onProfile, isAdmin, children }: Props) {
+export default function Layout({ title, user, authMeta, onHome, onSignOut, onSuperAdmin, onGroupAdmin, onProfile, isAdmin, children }: Props) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [signingOut, setSigningOut] = useState(false)
 
@@ -40,13 +41,6 @@ export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, o
         setSigningOut(true)
         onSignOut()
     }
-
-    const [authMeta, setAuthMeta] = useState<{ avatar_url?: string } | null>(null)
-    useEffect(() => {
-        import('@/lib/supabase').then(({ supabase }) => {
-            supabase.auth.getUser().then(({ data }) => setAuthMeta(data.user?.user_metadata || null))
-        })
-    }, [])
 
     const initials = user?.displayName
         ?.split(' ')

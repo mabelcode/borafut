@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@/test/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AppInner } from './App'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -11,6 +11,7 @@ vi.mock('@/hooks/useCurrentUser', () => ({
 vi.mock('@/lib/supabase', () => ({
     supabase: {
         auth: {
+            getUser: vi.fn().mockResolvedValue({ data: { user: { user_metadata: null } }, error: null }),
             getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
             onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
             signOut: vi.fn()

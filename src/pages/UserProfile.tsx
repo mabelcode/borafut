@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Medal, UserRoundMinus } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useUserProfileData } from '@/hooks/useUserProfileData'
 
@@ -9,7 +8,7 @@ interface Props {
 }
 
 export default function UserProfile({ onBack }: Props) {
-    const { user, refetch, updateProfile } = useCurrentUser()
+    const { user, authUser, refetch, updateProfile } = useCurrentUser()
     const { groups, history, loading: loadingData, error, leaveGroup } = useUserProfileData(user?.id)
 
     const [isSaving, setIsSaving] = useState(false)
@@ -35,10 +34,7 @@ export default function UserProfile({ onBack }: Props) {
         pixKey.trim() !== (user?.pixKey || '')
 
     // Auth User meta
-    const [authMeta, setAuthMeta] = useState<{ avatar_url?: string } | null>(null)
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => setAuthMeta(data.user?.user_metadata || null))
-    }, [])
+    const authMeta = authUser?.user_metadata as { avatar_url?: string } | null
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -185,7 +181,7 @@ export default function UserProfile({ onBack }: Props) {
                     <div className="flex flex-col gap-3">
                         <h2 className="text-sm font-bold text-primary-text uppercase tracking-widest px-1">Meus Grupos ({groups.length})</h2>
                         <div className="flex flex-col gap-2">
-                            {groups.map(group => (
+                            {groups.map((group: any) => (
                                 <div key={group.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                                     <div className="flex flex-col">
                                         <span className="font-bold text-sm text-primary-text">{group.name}</span>
@@ -216,7 +212,7 @@ export default function UserProfile({ onBack }: Props) {
                     <div className="flex flex-col gap-3">
                         <h2 className="text-sm font-bold text-primary-text uppercase tracking-widest px-1">Histórico Recente</h2>
                         <div className="flex flex-col gap-2">
-                            {history.map(match => (
+                            {history.map((match: any) => (
                                 <button
                                     key={match.id}
                                     onClick={onBack}

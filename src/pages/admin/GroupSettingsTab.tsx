@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, CheckCircle2, Link2, Copy, RefreshCw, Clock, Edit2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -22,18 +23,15 @@ const EXPIRY_OPTIONS = [
 ]
 
 export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
-    const [group, setGroup] = useState<GroupData | null>(null)
-    const [loading, setLoading] = useState(true)
+    const queryClient = useQueryClient()
     const [editingName, setEditingName] = useState(false)
     const [newName, setNewName] = useState('')
-    const [isSavingName, setIsSavingName] = useState(false)
     const [selectedExpiry, setSelectedExpiry] = useState<number | null>(null)
-    const [regenerating, setRegenerating] = useState(false)
     const [copied, setCopied] = useState(false)
 
-    async function fetchGroupData() {
-        try {
-            setLoading(true)
+    const { data: group, isLoading: loading, refetch: fetchGroupData } = useQuery({
+        queryKey: ['adminGroupSettings', groupId],
+        queryFn: async () => {
             const { data, error } = await supabase
                 .from('groups')
                 .select('id, name, inviteToken, inviteExpiresAt')
@@ -41,46 +39,46 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
                 .single()
 
             if (error) throw error
-            setGroup(data)
-            setNewName(data.name)
-        } catch (err) {
-            logger.error('Erro ao buscar dados do grupo para ajustes', err)
-        } finally {
-            setLoading(false)
+            return data as GroupData
         }
-    }
+    })
 
     useEffect(() => {
-        fetchGroupData()
-    }, [groupId])
+        if (group?.name) {
+            setNewName(group.name)
+        }
+    }, [group?.name])
+
+    const saveNameMutation = useMutation({
+        mutationFn: async (name: string) => {
+            const { error } = await supabase
+                .from('groups')
+                .update({ name })
+                .eq('id', groupId)
+
+            if (error) throw error
+            return name
+        },
+        onSuccess: (name) => {
+            queryClient.invalidateQueries({ queryKey: ['adminGroupSettings', groupId] })
+            queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
+            queryClient.invalidateQueries({ queryKey: ['adminGroups'] })
+            setEditingName(false)
+            logger.info('Nome do grupo atualizado pelo admin', { groupId, newName: name })
+        },
+        onError: (err) => logger.error('Erro ao atualizar nome do grupo', err)
+    })
 
     async function handleSaveName() {
         if (!newName.trim() || newName === group?.name) {
             setEditingName(false)
             return
         }
-
-        try {
-            setIsSavingName(true)
-            const { error } = await supabase
-                .from('groups')
-                .update({ name: newName.trim() })
-                .eq('id', groupId)
-
-            if (error) throw error
-            setGroup(prev => prev ? { ...prev, name: newName.trim() } : null)
-            setEditingName(false)
-            logger.info('Nome do grupo atualizado pelo admin', { groupId, newName })
-        } catch (err) {
-            logger.error('Erro ao atualizar nome do grupo', err)
-        } finally {
-            setIsSavingName(false)
-        }
+        saveNameMutation.mutate(newName.trim())
     }
 
-    async function handleRegenerateInvite() {
-        try {
-            setRegenerating(true)
+    const regenerateInviteMutation = useMutation({
+        mutationFn: async () => {
             const newToken = crypto.randomUUID().replace(/-/g, '')
             const expiresAt = selectedExpiry
                 ? new Date(Date.now() + selectedExpiry * 3600000).toISOString()
@@ -92,14 +90,17 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
                 .eq('id', groupId)
 
             if (error) throw error
-
-            setGroup(prev => prev ? { ...prev, inviteToken: newToken, inviteExpiresAt: expiresAt } : null)
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminGroupSettings', groupId] })
+            queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
             logger.info('Link de convite regenerado pelo admin', { groupId })
-        } catch (err) {
-            logger.error('Erro ao regenerar link de convite', err)
-        } finally {
-            setRegenerating(false)
-        }
+        },
+        onError: (err) => logger.error('Erro ao regenerar link de convite', err)
+    })
+
+    async function handleRegenerateInvite() {
+        regenerateInviteMutation.mutate()
     }
 
     async function handleCopyLink() {
@@ -123,7 +124,7 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
             <div className="p-12 text-center flex flex-col items-center gap-4 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 m-4">
                 <p className="text-sm text-secondary-text">Não foi possível carregar os dados do grupo.</p>
                 <button
-                    onClick={fetchGroupData}
+                    onClick={() => fetchGroupData()}
                     className="text-sm font-semibold text-brand-green hover:underline flex items-center gap-2"
                 >
                     <RefreshCw size={14} />
@@ -161,10 +162,10 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
                         {editingName ? (
                             <button
                                 onClick={handleSaveName}
-                                disabled={isSavingName}
+                                disabled={saveNameMutation.isPending}
                                 className="bg-brand-green text-white px-4 rounded-xl font-bold text-xs"
                             >
-                                {isSavingName ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
+                                {saveNameMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
                             </button>
                         ) : (
                             <button
@@ -231,10 +232,10 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
                     </div>
                     <button
                         onClick={handleRegenerateInvite}
-                        disabled={regenerating}
+                        disabled={regenerateInviteMutation.isPending}
                         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-900 text-white text-[11px] font-bold hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50"
                     >
-                        {regenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        {regenerateInviteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                         GERAR NOVO LINK
                     </button>
                 </div>

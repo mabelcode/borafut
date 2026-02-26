@@ -1,6 +1,8 @@
-import * as Sentry from '@sentry/react'
-import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import * as Sentry from '@sentry/react'
+
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { logger } from '@/lib/logger'
 import type { Session } from '@supabase/supabase-js'
 import Login from '@/pages/Login'
@@ -195,8 +197,9 @@ export function AppInner({
 
   return (
     <Layout
-      title={STATE_TITLES[appState]}
+      title={STATE_TITLES[appState] || 'Borafut'}
       user={user}
+      authMeta={session.user.user_metadata}
       onHome={() => setAppState('home')}
       onSignOut={async () => {
         await supabase.auth.signOut()
@@ -317,44 +320,60 @@ export function AppInner({
 // Root component handles auth only
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false)
   const [appState, setAppState] = useState<AppState>('loading')
   const [inviteToken] = useState<string | null>(getInviteToken)
 
-  async function bootstrap(newSession: Session | null) {
-    if (!newSession) {
-      setSession(null)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setIsSessionLoaded(true)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setIsSessionLoaded(true)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const { data: profileCheck, isLoading: checkingProfile } = useQuery({
+    queryKey: ['checkProfile', session?.user.id],
+    queryFn: async () => {
+      if (!session) return null
+      const { data } = await supabase
+        .from('users')
+        .select('displayName')
+        .eq('id', session.user.id)
+        .maybeSingle()
+      return data || { displayName: null }
+    },
+    enabled: !!session,
+    staleTime: Infinity,
+    gcTime: Infinity
+  })
+
+  useEffect(() => {
+    if (!isSessionLoaded) return
+
+    if (!session) {
       setAppState('login')
       Sentry.setUser(null)
       return
     }
 
-    setSession(newSession)
     Sentry.setUser({
-      id: newSession.user.id,
-      email: newSession.user.email,
+      id: session.user.id,
+      email: session.user.email,
     })
 
-    // Check if user has a profile (displayName set = completed onboarding)
-    const { data } = await supabase
-      .from('users')
-      .select('displayName')
-      .eq('id', newSession.user.id)
-      .maybeSingle()
-
-    if (!data?.displayName) {
-      setAppState('onboarding')
-    } else {
-      setAppState('loading') // AppInner will route based on groups
+    if (!checkingProfile && profileCheck !== undefined) {
+      if (!profileCheck?.displayName) {
+        setAppState('onboarding')
+      } else {
+        setAppState('loading') // AppInner will route based on groups
+      }
     }
-  }
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => bootstrap(data.session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      bootstrap(session)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+  }, [session, isSessionLoaded, checkingProfile, profileCheck])
 
   if (appState === 'loading' && !session) {
     return (

@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Loader2, Info, User, Target, Clock, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { logger } from '@/lib/logger'
 
 interface AuditLog {
     id: string
@@ -17,33 +16,24 @@ interface AuditLog {
 }
 
 export default function AuditLogsTab() {
-    const [logs, setLogs] = useState<AuditLog[]>([])
-    const [loading, setLoading] = useState(true)
-
-    async function fetchLogs() {
-        try {
-            setLoading(true)
+    const { data: logsData, isLoading: loading } = useQuery({
+        queryKey: ['adminAuditLogs'],
+        queryFn: async () => {
             const { data, error } = await supabase
                 .from('audit_log')
                 .select(`
-          *,
-          actor:users(displayName)
-        `)
+                  *,
+                  actor:users(displayName)
+                `)
                 .order('createdAt', { ascending: false })
                 .limit(50)
 
             if (error) throw error
-            setLogs(data as unknown as AuditLog[] || [])
-        } catch (err) {
-            logger.error('Erro ao buscar logs de auditoria', err)
-        } finally {
-            setLoading(false)
+            return (data as unknown as AuditLog[]) || []
         }
-    }
+    })
 
-    useEffect(() => {
-        fetchLogs()
-    }, [])
+    const logs = logsData ?? []
 
     function formatAction(action: string) {
         const actions: Record<string, string> = {

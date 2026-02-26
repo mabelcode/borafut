@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@/test/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import UserDetailsView from './UserDetailsView'
 import { supabase } from '@/lib/supabase'
@@ -116,10 +116,12 @@ describe('UserDetailsView Component', () => {
         const btnSave = screen.getByRole('button', { name: /SALVAR ALTERAÇÕES/i })
         fireEvent.click(btnSave)
 
-        expect(rpcMock).toHaveBeenCalledWith('admin_update_user_profile', {
-            p_user_id: 'user-1',
-            p_global_score: 4.5,
-            p_main_position: 'DEFENSE' // Original
+        await waitFor(() => {
+            expect(rpcMock).toHaveBeenCalledWith('admin_update_user_profile', {
+                p_user_id: 'user-1',
+                p_global_score: 4.5,
+                p_main_position: 'DEFENSE' // Original
+            })
         })
     })
 
@@ -134,7 +136,9 @@ describe('UserDetailsView Component', () => {
         const removeBtns = screen.getAllByTitle('Remover do Grupo')
         fireEvent.click(removeBtns[0])
 
-        expect(screen.getByText('Esta ação não pode ser desfeita')).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /Sim, Remover/i })).toBeInTheDocument()
+        await waitFor(() => {
+            expect(screen.getByText('Esta ação não pode ser desfeita')).toBeInTheDocument()
+            expect(screen.getByRole('button', { name: /Sim, Remover/i })).toBeInTheDocument()
+        })
     })
 })

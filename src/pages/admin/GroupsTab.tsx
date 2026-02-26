@@ -1,8 +1,9 @@
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
 import { AlertTriangle, ArrowRight, Edit2, FolderKanban, Loader2, Plus, Search, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 interface Props {
     onSelectGroup: (groupId: string) => void
@@ -19,8 +20,7 @@ interface Group {
 }
 
 export default function GroupsTab({ onSelectGroup }: Props) {
-    const [groups, setGroups] = useState<Group[]>([])
-    const [loading, setLoading] = useState(true)
+    const queryClient = useQueryClient()
     const [search, setSearch] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [newGroupName, setNewGroupName] = useState('')
@@ -34,125 +34,114 @@ export default function GroupsTab({ onSelectGroup }: Props) {
     const [isDeleting, setIsDeleting] = useState(false)
     const { user } = useCurrentUser()
 
-    async function fetchGroups() {
-        try {
-            setLoading(true)
+    const { data: groupsData, isLoading: loading } = useQuery({
+        queryKey: ['adminGroups'],
+        queryFn: async () => {
             const { data, error } = await supabase
                 .from('groups')
                 .select('*, group_members(count)')
                 .order('createdAt', { ascending: false })
 
             if (error) throw error
-            setGroups(data as unknown as Group[] || ([] as Group[]))
-        } catch (err) {
-            logger.error('Erro ao buscar grupos', err)
-        } finally {
-            setLoading(false)
+            return (data as unknown as Group[]) || []
         }
-    }
+    })
 
-    useEffect(() => {
-        fetchGroups()
-    }, [])
+    const groups = groupsData ?? []
 
-    async function handleCreateGroup(e: React.FormEvent) {
-        e.preventDefault()
-        if (!newGroupName.trim()) return
-
-        try {
-            setCreating(true)
+    const createMutation = useMutation({
+        mutationFn: async (name: string) => {
             const { data, error } = await supabase
                 .from('groups')
-                .insert({ name: newGroupName.trim() })
+                .insert({ name })
                 .select()
                 .single()
 
             if (error) throw error
-
+            return data
+        },
+        onSuccess: async (data) => {
             logger.info('Novo grupo criado pelo Super Admin', { groupId: data.id, name: data.name })
+            queryClient.invalidateQueries({ queryKey: ['adminGroups'] })
+            setIsModalOpen(false)
+            setNewGroupName('')
 
-            // Log audit
-            await supabase.from('audit_log').insert({
+            // Audit log in background
+            supabase.from('audit_log').insert({
                 actorId: user?.id,
                 action: 'CREATE_GROUP',
                 targetType: 'group',
                 targetId: data.id,
                 metadata: { name: data.name }
-            })
+            }).then()
+        },
+        onError: (err) => logger.error('Erro ao criar grupo', err),
+        onSettled: () => setCreating(false)
+    })
 
-            setNewGroupName('')
-            setIsModalOpen(false)
-            fetchGroups()
-        } catch (err) {
-            logger.error('Erro ao criar grupo', err)
-        } finally {
-            setCreating(false)
-        }
+    async function handleCreateGroup(e: React.FormEvent) {
+        e.preventDefault()
+        if (!newGroupName.trim()) return
+        setCreating(true)
+        createMutation.mutate(newGroupName.trim())
     }
+
+    const updateMutation = useMutation({
+        mutationFn: async ({ id, name }: { id: string, name: string }) => {
+            const { error } = await supabase.from('groups').update({ name }).eq('id', id)
+            if (error) throw error
+        },
+        onSuccess: (_, { id, name }) => {
+            logger.info('Grupo atualizado pelo Super Admin', { groupId: id, newName: name })
+            queryClient.invalidateQueries({ queryKey: ['adminGroups'] })
+            setIsEditModalOpen(false)
+            setEditingGroup(null)
+
+            supabase.from('audit_log').insert({
+                actorId: user?.id,
+                action: 'UPDATE_GROUP',
+                targetType: 'group',
+                targetId: id,
+                metadata: { newName: name }
+            }).then()
+        },
+        onError: (err) => logger.error('Erro ao atualizar grupo', err),
+        onSettled: () => setIsUpdating(false)
+    })
 
     async function handleUpdateGroup(e: React.FormEvent) {
         e.preventDefault()
         if (!editingGroup || !editName.trim()) return
-
-        try {
-            setIsUpdating(true)
-            const { error } = await supabase
-                .from('groups')
-                .update({ name: editName.trim() })
-                .eq('id', editingGroup.id)
-
-            if (error) throw error
-
-            logger.info('Grupo atualizado pelo Super Admin', { groupId: editingGroup.id, oldName: editingGroup.name, newName: editName.trim() })
-
-            await supabase.from('audit_log').insert({
-                actorId: user?.id,
-                action: 'UPDATE_GROUP',
-                targetType: 'group',
-                targetId: editingGroup.id,
-                metadata: { oldName: editingGroup.name, newName: editName.trim() }
-            })
-
-            setIsEditModalOpen(false)
-            setEditingGroup(null)
-            fetchGroups()
-        } catch (err) {
-            logger.error('Erro ao atualizar grupo', err)
-        } finally {
-            setIsUpdating(false)
-        }
+        setIsUpdating(true)
+        updateMutation.mutate({ id: editingGroup.id, name: editName.trim() })
     }
 
-    async function handleDeleteGroup() {
-        if (!deletingGroup) return
-
-        try {
-            setIsDeleting(true)
-            const { error } = await supabase
-                .from('groups')
-                .delete()
-                .eq('id', deletingGroup.id)
-
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase.from('groups').delete().eq('id', id)
             if (error) throw error
+        },
+        onSuccess: (_, id) => {
+            logger.info('Grupo removido pelo Super Admin', { groupId: id })
+            queryClient.invalidateQueries({ queryKey: ['adminGroups'] })
+            setIsDeleteModalOpen(false)
+            setDeletingGroup(null)
 
-            logger.info('Grupo removido pelo Super Admin', { groupId: deletingGroup.id, name: deletingGroup.name })
-
-            await supabase.from('audit_log').insert({
+            supabase.from('audit_log').insert({
                 actorId: user?.id,
                 action: 'DELETE_GROUP',
                 targetType: 'group',
-                targetId: deletingGroup.id,
-                metadata: { name: deletingGroup.name }
-            })
+                targetId: id,
+            }).then()
+        },
+        onError: (err) => logger.error('Erro ao excluir grupo', err),
+        onSettled: () => setIsDeleting(false)
+    })
 
-            setIsDeleteModalOpen(false)
-            setDeletingGroup(null)
-            fetchGroups()
-        } catch (err) {
-            logger.error('Erro ao excluir grupo', err)
-        } finally {
-            setIsDeleting(false)
-        }
+    async function handleDeleteGroup() {
+        if (!deletingGroup) return
+        setIsDeleting(true)
+        deleteMutation.mutate(deletingGroup.id)
     }
 
     const filteredGroups = groups.filter(g =>

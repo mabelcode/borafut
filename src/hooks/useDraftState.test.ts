@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act } from '@/test/test-utils';
 import { useDraftState } from './useDraftState';
 import { describe, it, expect } from 'vitest';
 import type { DraftPlayer } from '../lib/draft';

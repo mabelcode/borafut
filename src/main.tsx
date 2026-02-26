@@ -3,6 +3,17 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute cache
+      refetchOnWindowFocus: true, // Auto refetch on tab switch (Stale-while-revalidate)
+      retry: 1, // Only retry once on failure
+    },
+  },
+})
 
 Sentry.init({
   dsn: 'https://095b9f7a92a1a1db4192c9952e5293ab@o4509777586159616.ingest.us.sentry.io/4510932517126144',
@@ -26,6 +37,8 @@ Sentry.init({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </StrictMode>,
 )

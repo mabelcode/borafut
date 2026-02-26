@@ -12,7 +12,7 @@ interface Props {
     onError: () => void
 }
 
-type JoinState = 'loading' | 'success' | 'expired' | 'already-member' | 'error'
+type JoinState = 'loading' | 'success' | 'expired' | 'error'
 
 export default function JoinGroup({ token, session, onSuccess, onError }: Props) {
     const [state, setState] = useState<JoinState>('loading')
@@ -93,12 +93,6 @@ export default function JoinGroup({ token, session, onSuccess, onError }: Props)
             icon: <CheckCircle2 size={36} className="text-brand-green" />,
             title: `Bem-vindo à ${groupName}!`,
             desc: 'Você entrou na bolha com sucesso.',
-            color: 'bg-brand-green/10',
-        },
-        'already-member': {
-            icon: <CheckCircle2 size={36} className="text-brand-green" />,
-            title: 'Você já faz parte!',
-            desc: `Você já é membro de ${groupName}.`,
             color: 'bg-brand-green/10',
         },
         expired: {

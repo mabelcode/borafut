@@ -19,6 +19,21 @@ export default function UserProfile({ onBack }: Props) {
     const [position, setPosition] = useState(user?.mainPosition || '')
     const [pixKey, setPixKey] = useState(user?.pixKey || '')
 
+    useEffect(() => {
+        if (user) {
+            setName(user.displayName || '')
+            setPhone(user.phoneNumber || '')
+            setPosition(user.mainPosition || '')
+            setPixKey(user.pixKey || '')
+        }
+    }, [user])
+
+    const hasChanges =
+        name.trim() !== (user?.displayName || '') ||
+        phone.trim() !== (user?.phoneNumber || '') ||
+        position !== (user?.mainPosition || '') ||
+        pixKey.trim() !== (user?.pixKey || '')
+
     // Auth User meta
     const [authMeta, setAuthMeta] = useState<{ avatar_url?: string } | null>(null)
     useEffect(() => {
@@ -133,10 +148,10 @@ export default function UserProfile({ onBack }: Props) {
 
                         <button
                             type="submit"
-                            disabled={isSaving || !name.trim()}
+                            disabled={isSaving || !name.trim() || !hasChanges}
                             className={`mt-2 w-full py-3.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-70 ${successMsg
-                                    ? 'bg-brand-green text-white hover:bg-brand-green'
-                                    : 'bg-gray-900 text-white hover:bg-black active:scale-[0.98]'
+                                ? 'bg-brand-green text-white hover:bg-brand-green'
+                                : 'bg-gray-900 text-white hover:bg-black active:scale-[0.98]'
                                 }`}
                         >
                             {isSaving ? (

@@ -2,13 +2,17 @@ import { createLogger } from '@/lib/logger'
 import { useState, useEffect, useMemo } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
-    Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2
+    Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
+    RefreshCw, X
 } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { QrCodePix } from 'qrcode-pix'
 import { supabase } from '@/lib/supabase'
 import { useMatchDetail, type Registration } from '@/hooks/useMatchDetail'
 import type { Session } from '@supabase/supabase-js'
+import { useDraftState } from '@/hooks/useDraftState'
+import DraftBoard from '@/components/DraftBoard'
+import { type DraftPlayer, getTeamColorConfig } from '@/lib/draft'
 
 const logger = createLogger('MatchDetail')
 
@@ -254,6 +258,33 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
     const [adminPixKey, setAdminPixKey] = useState<string | null>(null)
     const [pixLoaded, setPixLoaded] = useState(false)
 
+    // Draft State
+    const [isDrafting, setIsDrafting] = useState(false)
+    const [isConfigModalOpen, setIsConfigModalOpen] = useState(false)
+    const [savingDraft, setSavingDraft] = useState(false)
+
+    // Prepare players for the draft hook
+    const confirmedPlayers: DraftPlayer[] = useMemo(() => {
+        if (!data) return [];
+        return data.registrations
+            .filter(r => r.status === 'CONFIRMED')
+            .map(r => ({
+                id: r.id, // we map player ID to registration ID to easily update later
+                name: r.users?.displayName || 'Jogador',
+                position: (r.users?.mainPosition as 'GOALKEEPER' | 'DEFENSE' | 'ATTACK') || 'ATTACK',
+                score: r.users?.globalScore || 3.0
+            }))
+    }, [data])
+
+    // Number of default teams suggestion (e.g., 2 times se tiver 10 ou mais)
+    const suggestedTeams = Math.max(2, Math.floor(confirmedPlayers.length / 5));
+
+    const {
+        numTeams, setNumTeams,
+        teams, isDraftGenerated,
+        generateDraft, selectedPlayer, handlePlayerClick
+    } = useDraftState({ players: confirmedPlayers, initialNumTeams: suggestedTeams })
+
     // Fetch admin's pixKey once match data is available
     useEffect(() => {
         if (!data) return
@@ -275,6 +306,39 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
             .eq('id', regId)
         if (error) logger.error('Erro ao confirmar pagamento', error)
         refetch()
+    }
+
+    async function handleSaveDraft() {
+        if (!isDraftGenerated) return;
+
+        try {
+            setSavingDraft(true);
+
+            // Shape the data for the RPC
+            // [{"registrationId": "id", "teamNumber": 1, "snapshotScore": 4.5, "snapshotPosition": "ATTACK"}, ...]
+            const draftData = teams.flatMap(team => team.players.map(p => ({
+                registrationId: p.id,
+                teamNumber: team.id,
+                snapshotScore: p.score,
+                snapshotPosition: p.position
+            })));
+
+            const { error } = await supabase.rpc('admin_save_draft', {
+                p_match_id: matchId,
+                p_draft_data: draftData
+            });
+
+            if (error) throw error;
+
+            logger.info('Times do sorteio salvos e partida fechada', { matchId });
+            setIsDrafting(false);
+            refetch();
+
+        } catch (err) {
+            logger.error('Erro ao salvar sorteio', err);
+        } finally {
+            setSavingDraft(false);
+        }
     }
 
     if (loading || (data && !pixLoaded)) {
@@ -327,94 +391,237 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                 </div>
             </header>
 
-            {/* Info card */}
-            <div className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-4">
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1 text-secondary-text">
-                            <Calendar size={12} /><span className="text-[10px] font-medium uppercase tracking-wide">Horário</span>
+            {/* Config Modal for generating draft */}
+            {isConfigModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-surface w-full max-w-sm rounded-t-[32px] sm:rounded-3xl flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
+                            <div>
+                                <h3 className="text-xl font-bold text-primary-text">Sortear Times</h3>
+                                <p className="text-xs text-secondary-text mt-1">Configuração do Draft</p>
+                            </div>
+                            <button onClick={() => setIsConfigModalOpen(false)} className="p-2 bg-gray-50 rounded-full text-secondary-text">
+                                <X size={20} />
+                            </button>
                         </div>
-                        <span className="text-sm font-bold text-primary-text">{formatTime(data.scheduledAt)}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1 text-secondary-text">
-                            <Users size={12} /><span className="text-[10px] font-medium uppercase tracking-wide">Vagas</span>
-                        </div>
-                        <span className="text-sm font-bold text-primary-text">
-                            {confirmed + reserved}<span className="text-secondary-text font-normal">/{data.maxPlayers}</span>
-                        </span>
-                        {spotsLeft > 0
-                            ? <span className="text-[10px] text-brand-green font-medium">{spotsLeft} disponíveis</span>
-                            : <span className="text-[10px] text-brand-red font-medium">Lotado</span>
-                        }
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1 text-secondary-text">
-                            <CircleDollarSign size={12} /><span className="text-[10px] font-medium uppercase tracking-wide">Taxa</span>
-                        </div>
-                        <span className="text-sm font-bold text-primary-text">{formatCurrency(data.price)}</span>
-                    </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-brand-green rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-secondary-text">
-                        <span>{confirmed} confirmados · {reserved} reservados{waitlist > 0 ? ` · ${waitlist} na fila` : ''}</span>
-                        <span>{progressPct}%</span>
-                    </div>
-                </div>
-            </div>
+                        <div className="p-6 flex flex-col gap-6">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-primary-text">Quantidade de Times</label>
+                                <input
+                                    type="number"
+                                    min="2"
+                                    max="10"
+                                    value={numTeams}
+                                    onChange={(e) => setNumTeams(Number(e.target.value))}
+                                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-lg font-bold focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition-all outline-none"
+                                />
+                                <span className="text-xs text-secondary-text mt-1">
+                                    Média sugerida: ~{(confirmedPlayers.length / numTeams).toFixed(1)} jogadores por time
+                                </span>
+                            </div>
 
-            {/* Admin: pending confirmations */}
-            {isAdmin && pendingReserved.length > 0 && (
-                <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex flex-col gap-2">
-                    <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
-                        Aguardando confirmação ({pendingReserved.length})
-                    </h2>
-                    {pendingReserved.map(reg => (
-                        <PlayerRow
-                            key={reg.id}
-                            reg={reg}
-                            isMe={reg.userId === session.user.id}
-                            isAdmin={isAdmin}
-                            onConfirm={handleConfirm}
-                        />
-                    ))}
+                            <button
+                                onClick={() => {
+                                    setIsConfigModalOpen(false);
+                                    setIsDrafting(true);
+                                    generateDraft(numTeams);
+                                }}
+                                className="w-full py-4 rounded-2xl bg-brand-green text-white font-bold text-sm shadow-lg shadow-brand-green/20 flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition-all"
+                            >
+                                <RefreshCw size={18} />
+                                GERAR TIMES
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* Player CTA — shown to everyone, including admins */}
-            {data.status === 'OPEN' && (
-                <CTAButton
-                    matchId={data.id}
-                    matchTitle={data.title ?? 'Partida'}
-                    myRegistration={data.myRegistration}
-                    confirmed={confirmed + reserved}
-                    maxPlayers={data.maxPlayers}
-                    session={session}
-                    pixKey={adminPixKey}
-                    price={data.price}
-                    onAction={refetch}
-                />
-            )}
+            {/* If Drafting, show Draft Board completely taking over the space */}
+            {isDrafting ? (
+                <div className="flex flex-col gap-5 animate-in slide-in-from-right-4 duration-300 pb-20">
+                    <div className="flex items-center justify-between bg-surface rounded-2xl p-4 border border-gray-100 shadow-sm">
+                        <div className="flex flex-col">
+                            <h2 className="text-sm font-bold text-primary-text uppercase tracking-widest">Mesa de Sorteio</h2>
+                            <span className="text-xs text-secondary-text">{numTeams} times · {confirmedPlayers.length} confirmados</span>
+                        </div>
+                        <button
+                            onClick={() => { setIsDrafting(false); generateDraft(); /* reset */ }}
+                            className="bg-gray-50 text-secondary-text px-3 py-2 rounded-xl text-[10px] font-bold border border-gray-100 uppercase tracking-widest hover:bg-gray-100"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
 
-            {/* All players */}
-            {data.registrations.length > 0 && (
-                <div className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-1">
-                    <h2 className="text-xs font-semibold text-secondary-text uppercase tracking-wide mb-2">
-                        Jogadores ({data.registrations.length})
-                    </h2>
-                    {data.registrations.map(reg => (
-                        <PlayerRow
-                            key={reg.id}
-                            reg={reg}
-                            isMe={reg.userId === session.user.id}
-                            isAdmin={isAdmin}
-                            onConfirm={isAdmin ? handleConfirm : undefined}
-                        />
-                    ))}
+                    <DraftBoard
+                        teams={teams}
+                        selectedPlayer={selectedPlayer}
+                        onPlayerClick={handlePlayerClick}
+                    />
+
+                    <button
+                        onClick={handleSaveDraft}
+                        disabled={savingDraft || !isDraftGenerated}
+                        className="fixed bottom-6 left-6 right-6 sm:relative sm:bottom-0 sm:inset-auto z-50 w-auto sm:w-full py-4 rounded-2xl bg-brand-green text-white font-bold text-sm shadow-xl shadow-brand-green/30 flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                        {savingDraft ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                        {savingDraft ? 'Salvando Definitivo...' : 'SALVAR E FECHAR PARTIDA'}
+                    </button>
                 </div>
+            ) : (
+                <>
+                    {/* Info card */}
+                    <div className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-4">
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1 text-secondary-text">
+                                    <Calendar size={12} /><span className="text-[10px] font-medium uppercase tracking-wide">Horário</span>
+                                </div>
+                                <span className="text-sm font-bold text-primary-text">{formatTime(data.scheduledAt)}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1 text-secondary-text">
+                                    <Users size={12} /><span className="text-[10px] font-medium uppercase tracking-wide">Vagas</span>
+                                </div>
+                                <span className="text-sm font-bold text-primary-text">
+                                    {confirmed}<span className="text-secondary-text font-normal">/{data.maxPlayers}</span>
+                                </span>
+                                {spotsLeft > 0
+                                    ? <span className="text-[10px] text-brand-green font-medium">{spotsLeft} disponíveis</span>
+                                    : <span className="text-[10px] text-brand-red font-medium">Lotado</span>
+                                }
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1 text-secondary-text">
+                                    <CircleDollarSign size={12} /><span className="text-[10px] font-medium uppercase tracking-wide">Taxa</span>
+                                </div>
+                                <span className="text-sm font-bold text-primary-text">{formatCurrency(data.price)}</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-brand-green rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                            </div>
+                            <div className="flex justify-between text-[10px] text-secondary-text">
+                                <span>{confirmed} confirmados · {reserved} reservados{waitlist > 0 ? ` · ${waitlist} na fila` : ''}</span>
+                                <span>{progressPct}%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Admin Actions: Sortear Teams */}
+                    {isAdmin && data.status === 'OPEN' && (
+                        <div className="bg-brand-green/5 border border-brand-green/10 rounded-2xl p-4 flex flex-col gap-3">
+                            <div className="flex justify-between items-center">
+                                <div className="flex flex-col">
+                                    <h3 className="text-sm font-bold text-brand-green uppercase tracking-widest">Painel de Sorteio</h3>
+                                    <p className="text-[10px] text-brand-green/70">Atualmente os times não foram definidos</p>
+                                </div>
+                                <ShieldCheck size={28} className="text-brand-green/20" />
+                            </div>
+                            <button
+                                onClick={() => setIsConfigModalOpen(true)}
+                                disabled={confirmedPlayers.length < 2}
+                                className="w-full py-3.5 bg-brand-green text-white font-bold rounded-xl shadow-lg shadow-brand-green/20 text-sm flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                <RefreshCw size={18} />
+                                CONFIGURAR E SORTEAR TIMES
+                            </button>
+                            {confirmedPlayers.length < 2 && (
+                                <p className="text-[10px] text-amber-600 text-center uppercase tracking-wide">
+                                    Necessário ao menos 2 jogadores confirmados para sortear.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Admin: pending confirmations */}
+                    {isAdmin && pendingReserved.length > 0 && (
+                        <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex flex-col gap-2">
+                            <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
+                                Aguardando confirmação ({pendingReserved.length})
+                            </h2>
+                            {pendingReserved.map(reg => (
+                                <PlayerRow
+                                    key={reg.id}
+                                    reg={reg}
+                                    isMe={reg.userId === session.user.id}
+                                    isAdmin={isAdmin}
+                                    onConfirm={handleConfirm}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Player CTA — shown to everyone, including admins */}
+                    {data.status === 'OPEN' && (
+                        <CTAButton
+                            matchId={data.id}
+                            matchTitle={data.title ?? 'Partida'}
+                            myRegistration={data.myRegistration}
+                            confirmed={confirmed + reserved}
+                            maxPlayers={data.maxPlayers}
+                            session={session}
+                            pixKey={adminPixKey}
+                            price={data.price}
+                            onAction={refetch}
+                        />
+                    )}
+
+                    {/* All players or Teams based on status */}
+                    {(data.status === 'CLOSED' || data.status === 'FINISHED') && data.registrations.some(r => r.teamNumber) ? (
+                        <div className="flex flex-col gap-4 pb-16">
+                            <h2 className="text-sm font-bold text-primary-text uppercase tracking-widest mt-2">
+                                Times Definidos
+                            </h2>
+                            {/* Grouping logic right in the render for simplicity */}
+                            {Array.from(new Set(data.registrations.filter(r => r.teamNumber).map(r => r.teamNumber))).sort().map((teamNum, idx) => {
+                                const teamRegs = data.registrations.filter(r => r.teamNumber === teamNum);
+                                const isMyTeam = teamRegs.some(r => r.userId === session.user.id);
+                                const colorConfig = getTeamColorConfig(idx);
+                                return (
+                                    <div key={`team-${teamNum}`} className={`bg-surface rounded-2xl border ${isMyTeam ? 'border-brand-green shadow-sm shadow-brand-green/10' : 'border-gray-100 shadow-sm'} overflow-hidden`}>
+                                        <div className={`px-4 py-2.5 flex items-center justify-between border-b border-gray-100 ${isMyTeam ? 'bg-brand-green/5' : 'bg-gray-50'}`}>
+                                            <div className="flex items-center gap-2">
+                                                <div className={`size-3.5 rounded-sm border shadow-sm ${colorConfig.bgClass} ${colorConfig.borderClass}`} title={colorConfig.name} />
+                                                <h3 className={`font-bold uppercase tracking-widest text-xs ${isMyTeam ? 'text-brand-green' : 'text-secondary-text'}`}>
+                                                    Time {teamNum}
+                                                </h3>
+                                            </div>
+                                            <div className="text-[10px] font-semibold text-secondary-text">
+                                                {teamRegs.length} jogadores
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col p-2 gap-1">
+                                            {teamRegs.map(reg => (
+                                                <PlayerRow
+                                                    key={reg.id}
+                                                    reg={reg}
+                                                    isMe={reg.userId === session.user.id}
+                                                    isAdmin={isAdmin}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (data.registrations.length > 0 && (
+                        <div className="bg-surface rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-1 pb-16">
+                            <h2 className="text-xs font-semibold text-secondary-text uppercase tracking-wide mb-2">
+                                Jogadores ({data.registrations.length})
+                            </h2>
+                            {data.registrations.map(reg => (
+                                <PlayerRow
+                                    key={reg.id}
+                                    reg={reg}
+                                    isMe={reg.userId === session.user.id}
+                                    isAdmin={isAdmin}
+                                    onConfirm={isAdmin ? handleConfirm : undefined}
+                                />
+                            ))}
+                        </div>
+                    ))}
+                </>
             )}
         </div>
     )

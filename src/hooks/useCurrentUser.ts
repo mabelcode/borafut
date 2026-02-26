@@ -73,9 +73,27 @@ export function useCurrentUser() {
 
     useEffect(() => { fetchUser() }, [])
 
+    async function updateProfile(updates: Partial<Omit<UserProfile, 'id' | 'createdAt' | 'isSuperAdmin'>>) {
+        if (!user) return false
+        try {
+            const { error: err } = await supabase
+                .from('users')
+                .update(updates)
+                .eq('id', user.id)
+
+            if (err) throw err
+            setUser({ ...user, ...updates })
+            logger.info('User profile updated successfully')
+            return true
+        } catch (err: any) {
+            logger.error('Error updating user profile', err)
+            return false
+        }
+    }
+
     // Derived helpers
     const isAdminInAnyGroup = user?.isSuperAdmin || groups.some(g => g.role === 'ADMIN')
     const adminGroups = user?.isSuperAdmin ? groups : groups.filter(g => g.role === 'ADMIN')
 
-    return { user, groups, loading, isAdminInAnyGroup, adminGroups, refetch: fetchUser }
+    return { user, groups, loading, isAdminInAnyGroup, adminGroups, refetch: fetchUser, updateProfile }
 }

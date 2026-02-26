@@ -15,6 +15,7 @@ import SuperAdmin from './pages/SuperAdmin'
 import GroupAdmin from './pages/GroupAdmin'
 import GroupDetailsView from './pages/admin/GroupDetailsView'
 import UserDetailsView from './pages/admin/UserDetailsView'
+import UserProfile from '@/pages/UserProfile'
 import Layout from '@/components/Layout'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
@@ -49,6 +50,7 @@ type AppState =
   | 'super-admin-group'
   | 'super-admin-user'
   | 'group-admin'
+  | 'user-profile'
 
 /** Reads ?token= from the current URL without changing history */
 function getInviteToken(): string | null {
@@ -71,6 +73,7 @@ const STATE_TITLES: Record<AppState, string | undefined> = {
   'match-detail': 'Detalhes da Partida',
   'admin-settings': 'Configurações do Grupo',
   'group-admin': 'Painel do Admin',
+  'user-profile': 'Meu Perfil',
   'waiting-for-invite': 'Início',
   'join-group': 'Entrar no Grupo',
   'loading': undefined,
@@ -201,6 +204,7 @@ export function AppInner({
       }}
       onSuperAdmin={() => setAppState('super-admin')}
       onGroupAdmin={() => setAppState('group-admin')}
+      onProfile={() => setAppState('user-profile')}
       isAdmin={isAdminInAnyGroup}
     >
       {appState === 'join-group' && inviteToken && (
@@ -301,6 +305,10 @@ export function AppInner({
           groupId={selectedGroupId || activeAdminGroupId}
           onBack={() => setAppState('home')}
         />
+      )}
+
+      {appState === 'user-profile' && (
+        <UserProfile onBack={() => setAppState('home')} />
       )}
     </Layout>
   )

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Loader2, LogOut, Medal, UserRoundMinus } from 'lucide-react'
+import { Loader2, Medal, UserRoundMinus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useUserProfileData } from '@/hooks/useUserProfileData'
@@ -33,10 +33,6 @@ export default function UserProfile({ onBack }: Props) {
         })
         await refetch()
         setIsSaving(false)
-    }
-
-    const handleLogout = async () => {
-        await supabase.auth.signOut()
     }
 
     if (!user || loadingData) {

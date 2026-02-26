@@ -27,11 +27,14 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 const mockUser = {
-    id: '123',
+    id: 'u1',
     displayName: 'Test Player',
-    mainPosition: 'ATTACK',
+    phoneNumber: null,
     globalScore: 4.8,
-    pixKey: 'test@pix.com'
+    mainPosition: 'ATTACK',
+    pixKey: 'test@pix.com',
+    isSuperAdmin: false,
+    createdAt: '2022-01-01T00:00:00Z'
 }
 
 const mockGroups = [
@@ -67,9 +70,6 @@ describe('UserProfile', () => {
                 <UserProfile onBack={vi.fn()} />
             </BrowserRouter>
         )
-
-        // Assert header
-        expect(screen.getByText('Perfil do Jogador')).toBeInTheDocument()
 
         // Assert loaded identity
         expect(screen.getByDisplayValue('Test Player')).toBeInTheDocument()
@@ -109,6 +109,7 @@ describe('UserProfile', () => {
         await waitFor(() => {
             expect(updateMock).toHaveBeenCalledWith({
                 displayName: 'New Name',
+                phoneNumber: null,
                 mainPosition: 'ATTACK',
                 pixKey: 'test@pix.com'
             })

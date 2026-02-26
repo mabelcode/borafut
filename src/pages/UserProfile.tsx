@@ -13,7 +13,9 @@ export default function UserProfile({ onBack }: Props) {
     const { groups, history, loading: loadingData, error, leaveGroup } = useUserProfileData(user?.id)
 
     const [isSaving, setIsSaving] = useState(false)
+    const [successMsg, setSuccessMsg] = useState(false)
     const [name, setName] = useState(user?.displayName || '')
+    const [phone, setPhone] = useState(user?.phoneNumber || '')
     const [position, setPosition] = useState(user?.mainPosition || '')
     const [pixKey, setPixKey] = useState(user?.pixKey || '')
 
@@ -25,14 +27,37 @@ export default function UserProfile({ onBack }: Props) {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (!name.trim()) {
+            // Re-use standard error banner if name is empty
+            // Though HTML5 `required` usually covers it, manual check is safer
+            return
+        }
+
         setIsSaving(true)
-        await updateProfile({
-            displayName: name,
+        const ok = await updateProfile({
+            displayName: name.trim(),
+            phoneNumber: phone.trim() || null,
             mainPosition: position as any,
-            pixKey
+            pixKey: pixKey.trim() || null
         })
+
+        if (ok) {
+            setSuccessMsg(true)
+            setTimeout(() => setSuccessMsg(false), 3000)
+        }
         await refetch()
         setIsSaving(false)
+    }
+
+    // Phone formatter helper
+    const handlePhoneChange = (val: string) => {
+        const numbers = val.replace(/\D/g, '')
+        if (numbers.length <= 11) {
+            let masked = numbers
+            if (numbers.length > 2) masked = `(${numbers.slice(0, 2)}) ` + numbers.slice(2)
+            if (numbers.length > 7) masked = masked.slice(0, 10) + '-' + numbers.slice(10)
+            setPhone(masked)
+        }
     }
 
     if (!user || loadingData) {
@@ -63,11 +88,23 @@ export default function UserProfile({ onBack }: Props) {
 
                     <form onSubmit={handleSave} className="w-full flex flex-col gap-4">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-secondary-text uppercase tracking-wide px-1">Nome/Apelido</label>
+                            <label className="text-xs font-bold text-secondary-text uppercase tracking-wide px-1">Nome/Apelido *</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={e => setName(e.target.value)}
+                                required
+                                placeholder="Como você é chamado"
+                                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-semibold text-primary-text focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition-all outline-none"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-secondary-text uppercase tracking-wide px-1">Telefone (WhatsApp)</label>
+                            <input
+                                type="tel"
+                                value={phone}
+                                onChange={e => handlePhoneChange(e.target.value)}
+                                placeholder="(11) 99999-9999"
                                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-semibold text-primary-text focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition-all outline-none"
                             />
                         </div>
@@ -96,10 +133,19 @@ export default function UserProfile({ onBack }: Props) {
 
                         <button
                             type="submit"
-                            disabled={isSaving}
-                            className="mt-2 w-full py-3.5 rounded-xl bg-gray-900 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all disabled:opacity-70"
+                            disabled={isSaving || !name.trim()}
+                            className={`mt-2 w-full py-3.5 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-70 ${successMsg
+                                    ? 'bg-brand-green text-white hover:bg-brand-green'
+                                    : 'bg-gray-900 text-white hover:bg-black active:scale-[0.98]'
+                                }`}
                         >
-                            {isSaving ? <Loader2 size={18} className="animate-spin" /> : 'Salvar Alterações'}
+                            {isSaving ? (
+                                <Loader2 size={18} className="animate-spin" />
+                            ) : successMsg ? (
+                                'Salvo com sucesso ✓'
+                            ) : (
+                                'Salvar Alterações'
+                            )}
                         </button>
                     </form>
                 </section>

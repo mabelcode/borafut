@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateSnakeDraft, recalculateAverages } from './draft';
+import { generateSnakeDraft, recalculateAverages, getTeamColorConfig } from './draft';
 import type { DraftPlayer } from './draft';
 
 describe('generateSnakeDraft', () => {
@@ -63,5 +63,17 @@ describe('recalculateAverages', () => {
         const recalculated = recalculateAverages(teams);
         expect(recalculated[0].averageScore).toBe(5);
         expect(recalculated[1].averageScore).toBe(3);
+    });
+});
+
+describe('TEAM_COLORS_CONFIG', () => {
+    it('should cycle through colors based on index', () => {
+        const config0 = getTeamColorConfig(0);
+        const configCycle = getTeamColorConfig(8); // Since there are 8 colors, index 8 should wrap to 0
+        expect(config0.id).toBe('yellow');
+        expect(configCycle.id).toBe('yellow');
+
+        const config1 = getTeamColorConfig(1);
+        expect(config1.id).toBe('blue');
     });
 });

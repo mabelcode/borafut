@@ -85,9 +85,9 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
             // Type guard to ensure data integrity
             const rawRegs = (regsData as unknown as SupabasePendingRegistration[]) || []
             const validatedRegs: PendingRegistration[] = rawRegs
-                .filter((r): r is SupabasePendingRegistration & { match: object; user: { phoneNumber: string } } =>
+                .filter((r): r is SupabasePendingRegistration & { match: { title: string; scheduledAt: string }; user: { displayName: string | null; phoneNumber: string } } =>
                     !!r.match && !!r.user && !!r.user.phoneNumber
-                ) as any
+                ) as unknown as PendingRegistration[]
 
             setPendingRegs(validatedRegs)
 

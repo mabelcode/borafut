@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { logger } from '@/lib/logger'
 
 /** Map of matchId → user's registration status in that match */
 export type MyRegistrationsMap = Record<string, 'RESERVED' | 'CONFIRMED' | 'WAITLIST'>

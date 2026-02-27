@@ -112,6 +112,8 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
         },
         onSuccess: (_, { groupId }) => {
             queryClient.invalidateQueries({ queryKey: ['adminUserDetails', userId] })
+            queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
+            queryClient.invalidateQueries({ queryKey: ['adminGroups'] })
             setMembershipToRemove(null)
             logger.info('Usuário removido do grupo', { userId, groupId })
         },

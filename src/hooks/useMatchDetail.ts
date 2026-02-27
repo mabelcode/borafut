@@ -28,6 +28,7 @@ export interface MatchDetailData {
 export function useMatchDetail(matchId: string) {
     const { data, isLoading: loading, error: queryError, refetch } = useQuery({
         queryKey: ['matchDetail', matchId],
+        enabled: !!matchId,
         queryFn: async () => {
             const { data: { user: authUser } } = await supabase.auth.getUser()
             if (!authUser) throw new Error('User not authenticated')
@@ -43,6 +44,7 @@ export function useMatchDetail(matchId: string) {
             ])
 
             if (matchRes.error) throw new Error(matchRes.error.message)
+            if (regRes.error) throw new Error(regRes.error.message)
 
             const registrations = (regRes.data ?? []) as unknown as Registration[]
             const myRegistration = registrations.find(r => r.userId === authUser.id) ?? null

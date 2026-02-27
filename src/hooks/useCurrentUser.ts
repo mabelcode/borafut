@@ -23,6 +23,12 @@ export interface GroupMembership {
     inviteExpiresAt: string | null
 }
 
+export interface CurrentUserQueryData {
+    user: UserProfile | null
+    groups: GroupMembership[]
+    authUser: import('@supabase/supabase-js').User | null
+}
+
 export function useCurrentUser() {
     const queryClient = useQueryClient()
 
@@ -86,7 +92,7 @@ export function useCurrentUser() {
         },
         onSuccess: (updates) => {
             logger.info('User profile updated successfully')
-            queryClient.setQueryData(['currentUser'], (oldData: any) => {
+            queryClient.setQueryData<CurrentUserQueryData>(['currentUser'], (oldData) => {
                 if (!oldData || !oldData.user) return oldData
                 return {
                     ...oldData,

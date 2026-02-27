@@ -356,22 +356,28 @@ export default function App() {
     if (!isSessionLoaded) return
 
     if (!session) {
-      setAppState('login')
-      Sentry.setUser(null)
+      queueMicrotask(() => {
+        setAppState('login')
+        Sentry.setUser(null)
+      })
       return
     }
 
-    Sentry.setUser({
-      id: session.user.id,
-      email: session.user.email,
+    queueMicrotask(() => {
+      Sentry.setUser({
+        id: session.user.id,
+        email: session.user.email,
+      })
     })
 
     if (!checkingProfile && profileCheck !== undefined) {
-      if (!profileCheck?.displayName) {
-        setAppState('onboarding')
-      } else {
-        setAppState('loading') // AppInner will route based on groups
-      }
+      queueMicrotask(() => {
+        if (!profileCheck?.displayName) {
+          setAppState('onboarding')
+        } else {
+          setAppState('loading') // AppInner will route based on groups
+        }
+      })
     }
   }, [session, isSessionLoaded, checkingProfile, profileCheck])
 

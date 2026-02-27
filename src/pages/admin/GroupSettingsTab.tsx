@@ -103,9 +103,13 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
     async function handleCopyLink() {
         if (!group) return
         const inviteUrl = `${window.location.origin}?token=${group.inviteToken}`
-        await navigator.clipboard.writeText(inviteUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        try {
+            await navigator.clipboard.writeText(inviteUrl)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch (err) {
+            logger.error('Erro ao copiar link para a área de transferência', err)
+        }
     }
 
     if (loading) {
@@ -166,7 +170,10 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
                             </button>
                         ) : (
                             <button
-                                onClick={() => setEditingName(true)}
+                                onClick={() => {
+                                    setLocalNewName(group.name)
+                                    setEditingName(true)
+                                }}
                                 className="bg-gray-100 text-secondary-text px-4 rounded-xl font-bold text-xs"
                             >
                                 Editar

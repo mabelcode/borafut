@@ -46,8 +46,8 @@ export function useCurrentUser() {
                     .eq('userId', authUser.id),
             ])
 
-            if (profileRes.error) logger.error('Erro ao buscar perfil do usuário', profileRes.error)
-            if (membershipsRes.error) logger.error('Erro ao buscar memberships', membershipsRes.error)
+            if (profileRes.error) throw profileRes.error
+            if (membershipsRes.error) throw membershipsRes.error
 
             const rawMemberships = (membershipsRes.data ?? []) as unknown as {
                 role: 'ADMIN' | 'PLAYER'

@@ -57,7 +57,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
         setLastUserId(user?.id)
         setPixKey(user?.pixKey ?? '')
     }
-    const { data: pendingRegs, isLoading: loadingRegs } = useQuery({
+    const { data: pendingRegs, isLoading: loadingRegs, isError: isRegsError, error: regsQueryError } = useQuery({
         queryKey: ['adminGroupFinance', groupId],
         queryFn: async () => {
             const { data: regsData, error: regsError } = await supabase
@@ -86,7 +86,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
 
     const confirmPaymentMutation = useMutation({
         mutationFn: async (regId: string) => {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('match_registrations')
                 .update({ status: 'CONFIRMED' })
                 .eq('id', regId)
@@ -94,6 +94,7 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                 .select('id')
 
             if (error) throw error
+            if (!data || data.length === 0) throw new Error('No registration was updated')
             return regId
         },
         onSuccess: (regId) => {
@@ -167,6 +168,10 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
                 {loadingRegs ? (
                     <div className="flex justify-center py-10">
                         <Loader2 size={24} className="animate-spin text-secondary-text" />
+                    </div>
+                ) : isRegsError ? (
+                    <div className="text-center py-12 bg-red-50 rounded-3xl border border-red-100">
+                        <p className="text-sm text-red-600">Erro ao carregar as pendências: {regsQueryError instanceof Error ? regsQueryError.message : 'Erro desconhecido'}</p>
                     </div>
                 ) : (pendingRegs ?? []).length === 0 ? (
                     <div className="text-center py-12 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">

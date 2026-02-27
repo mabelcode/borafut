@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import * as Sentry from '@sentry/react'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { logger } from '@/lib/logger'
 import type { Session } from '@supabase/supabase-js'
@@ -319,6 +319,7 @@ export function AppInner({
 
 // Root component handles auth only
 export default function App() {
+  const queryClient = useQueryClient()
   const [session, setSession] = useState<Session | null>(null)
   const [isSessionLoaded, setIsSessionLoaded] = useState(false)
   const [appState, setAppState] = useState<AppState>('loading')
@@ -336,15 +337,16 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const { data: profileCheck, isLoading: checkingProfile } = useQuery({
+  const { data: profileCheck, isLoading: checkingProfile, error: profileError } = useQuery({
     queryKey: ['checkProfile', session?.user.id],
     queryFn: async () => {
       if (!session) return null
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .select('displayName')
         .eq('id', session.user.id)
         .maybeSingle()
+      if (error) throw error
       return data || { displayName: null }
     },
     enabled: !!session,
@@ -370,7 +372,7 @@ export default function App() {
       })
     })
 
-    if (!checkingProfile && profileCheck !== undefined) {
+    if (!checkingProfile && profileCheck !== undefined && !profileError) {
       queueMicrotask(() => {
         if (!profileCheck?.displayName) {
           setAppState('onboarding')
@@ -405,7 +407,10 @@ export default function App() {
         <div className="mx-auto max-w-md px-4 py-8">
           <Onboarding
             session={session}
-            onComplete={() => setAppState('loading')}
+            onComplete={() => {
+              queryClient.invalidateQueries({ queryKey: ['checkProfile', session.user.id] })
+              setAppState('loading')
+            }}
             onSignOut={() => setAppState('login')}
           />
         </div>

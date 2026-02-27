@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Medal, UserRoundMinus } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
-import { useUserProfileData } from '@/hooks/useUserProfileData'
+import { useUserProfileData, type ProfileGroup, type ProfileMatch } from '@/hooks/useUserProfileData'
 
 interface Props {
     onBack: () => void
@@ -15,18 +15,18 @@ export default function UserProfile({ onBack }: Props) {
     const [successMsg, setSuccessMsg] = useState(false)
     const [localName, setLocalName] = useState<string | null>(null)
     const [localPhone, setLocalPhone] = useState<string | null>(null)
-    const [localPosition, setLocalPosition] = useState<string | undefined | null>(null)
-    const [localPixKey, setLocalPixKey] = useState<string | undefined | null>(null)
+    const [localPosition, setLocalPosition] = useState<string | null>(null)
+    const [localPixKey, setLocalPixKey] = useState<string | null>(null)
 
     const name = localName !== null ? localName : (user?.displayName || '')
     const phone = localPhone !== null ? localPhone : (user?.phoneNumber || '')
-    const position = localPosition !== null ? localPosition : (user?.mainPosition ?? undefined)
-    const pixKey = localPixKey !== null ? localPixKey : (user?.pixKey ?? undefined)
+    const position = localPosition !== null ? localPosition : (user?.mainPosition || '')
+    const pixKey = localPixKey !== null ? localPixKey : (user?.pixKey || '')
 
     const hasChanges =
         name.trim() !== (user?.displayName || '') ||
         phone.trim() !== (user?.phoneNumber || '') ||
-        position !== (user?.mainPosition ?? undefined) ||
+        position !== (user?.mainPosition || '') ||
         (pixKey || '').trim() !== (user?.pixKey || '')
 
     // Auth User meta
@@ -44,7 +44,7 @@ export default function UserProfile({ onBack }: Props) {
         const ok = await updateProfile({
             displayName: name.trim(),
             phoneNumber: phone.trim() || null,
-            mainPosition: (position as any) || null,
+            mainPosition: (position as "GOALKEEPER" | "DEFENSE" | "ATTACK") || null,
             pixKey: pixKey?.trim() || null
         })
 
@@ -195,7 +195,7 @@ export default function UserProfile({ onBack }: Props) {
                     <div className="flex flex-col gap-3">
                         <h2 className="text-sm font-bold text-primary-text uppercase tracking-widest px-1">Meus Grupos ({groups.length})</h2>
                         <div className="flex flex-col gap-2">
-                            {groups.map((group: any) => (
+                            {groups.map((group: ProfileGroup) => (
                                 <div key={group.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                                     <div className="flex flex-col">
                                         <span className="font-bold text-sm text-primary-text">{group.name}</span>
@@ -226,7 +226,7 @@ export default function UserProfile({ onBack }: Props) {
                     <div className="flex flex-col gap-3">
                         <h2 className="text-sm font-bold text-primary-text uppercase tracking-widest px-1">Histórico Recente</h2>
                         <div className="flex flex-col gap-2">
-                            {history.map((match: any) => (
+                            {history.map((match: ProfileMatch) => (
                                 <button
                                     key={match.id}
                                     onClick={onBack}

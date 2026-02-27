@@ -169,6 +169,7 @@ describe('GroupFinanceTab Component', () => {
         fireEvent.click(confirmBtn)
 
         await waitFor(() => {
+            expect(updateChain.eq).toHaveBeenCalledWith('status', 'RESERVED')
             expect(mockUpdate).toHaveBeenCalledWith({ status: 'CONFIRMED' })
         })
     })

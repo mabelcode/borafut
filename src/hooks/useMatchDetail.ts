@@ -30,7 +30,9 @@ export function useMatchDetail(matchId: string) {
         queryKey: ['matchDetail', matchId],
         enabled: !!matchId,
         queryFn: async () => {
-            const { data: { user: authUser } } = await supabase.auth.getUser()
+            const response = await supabase.auth.getUser()
+            if (response.error) throw response.error
+            const authUser = response.data.user
             if (!authUser) throw new Error('User not authenticated')
 
             const [matchRes, regRes] = await Promise.all([

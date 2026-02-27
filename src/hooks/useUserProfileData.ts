@@ -19,6 +19,24 @@ export interface ProfileMatch {
     groupName: string
 }
 
+interface GroupMemberRow {
+    role: string
+    joinedAt: string
+    groups: { id: string; name: string } | null
+}
+
+interface MatchRegistrationRow {
+    id: string
+    matches: {
+        id: string
+        title: string | null
+        scheduledAt: string
+        groupId: string
+        status: string
+        groups: { name: string } | null
+    } | null
+}
+
 export function useUserProfileData(userId?: string) {
     const queryClient = useQueryClient()
 
@@ -42,13 +60,16 @@ export function useUserProfileData(userId?: string) {
 
             // Type assertions because the join returns arrays/objects
             const formattedGroups: ProfileGroup[] = (groupData || [])
-                .filter((gm: any) => gm.groups)
-                .map((gm: any) => ({
-                    id: gm.groups.id,
-                    name: gm.groups.name,
-                    role: gm.role,
-                    joinedAt: gm.joinedAt
-                }))
+                .filter((gm: unknown) => (gm as GroupMemberRow).groups !== null)
+                .map((gm: unknown) => {
+                    const row = gm as GroupMemberRow
+                    return {
+                        id: row.groups!.id,
+                        name: row.groups!.name,
+                        role: row.role,
+                        joinedAt: row.joinedAt
+                    }
+                })
 
             // 2. Fetch Match History (Registrations where status === 'CONFIRMED')
             // Limited to the last 10 for the profile page
@@ -66,13 +87,16 @@ export function useUserProfileData(userId?: string) {
             if (matchErr) throw matchErr
 
             const formattedHistory: ProfileMatch[] = (matchData || [])
-                .map((reg: any) => ({
-                    id: reg.matches?.id ?? '',
-                    title: reg.matches?.title ?? null,
-                    scheduledAt: reg.matches?.scheduledAt ?? '',
-                    groupId: reg.matches?.groupId ?? '',
-                    groupName: reg.matches?.groups?.name ?? 'Unknown Group'
-                }))
+                .map((reg: unknown) => {
+                    const row = reg as MatchRegistrationRow
+                    return {
+                        id: row.matches?.id ?? '',
+                        title: row.matches?.title ?? null,
+                        scheduledAt: row.matches?.scheduledAt ?? '',
+                        groupId: row.matches?.groupId ?? '',
+                        groupName: row.matches?.groups?.name ?? 'Unknown Group'
+                    }
+                })
 
             return { groups: formattedGroups, history: formattedHistory }
         }
@@ -96,17 +120,17 @@ export function useUserProfileData(userId?: string) {
         },
         onSuccess: (groupId) => {
             logger.info('User left group', { groupId, userId })
-            queryClient.setQueryData(['userProfile', userId], (oldData: any) => {
+            queryClient.setQueryData<{ groups: ProfileGroup[]; history: ProfileMatch[] }>(['userProfile', userId], (oldData) => {
                 if (!oldData) return oldData
                 return {
                     ...oldData,
-                    groups: oldData.groups.filter((g: any) => g.id !== groupId)
+                    groups: oldData.groups.filter((g) => g.id !== groupId)
                 }
             })
             // We also invalidate currentUser to reflect the left group in Admin access right away
             queryClient.invalidateQueries({ queryKey: ['currentUser'] })
         },
-        onError: (err: any, groupId) => {
+        onError: (err: Error, groupId) => {
             logger.error('Error leaving group', { groupId, error: err })
         }
     })

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, CheckCircle2, QrCode, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -47,17 +47,16 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
     const { user, updateProfile } = useCurrentUser()
     const initialPixFromUser = user?.pixKey ?? ''
 
-    const [pixKey, setPixKey] = useState(initialPixFromUser)
+    const [pixKey, setPixKey] = useState(() => user?.pixKey ?? '')
     const [savedPix, setSavedPix] = useState(false)
     const [savingPix, setSavingPix] = useState(false)
 
-    // Sync pixKey if currentUser changes externally
-    useEffect(() => {
-        if (user?.pixKey !== undefined) {
-            setPixKey(user.pixKey ?? '')
-        }
-    }, [user?.pixKey])
-
+    // Sync one-time when user id transitions if needed
+    const [lastUserId, setLastUserId] = useState(user?.id)
+    if (user?.id !== lastUserId) {
+        setLastUserId(user?.id)
+        setPixKey(user?.pixKey ?? '')
+    }
     const { data: pendingRegs, isLoading: loadingRegs } = useQuery({
         queryKey: ['adminGroupFinance', groupId],
         queryFn: async () => {

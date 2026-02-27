@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, CheckCircle2, Link2, Copy, RefreshCw, Clock, Edit2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -43,9 +43,12 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
         }
     })
 
+    const initializedRef = useRef(false)
+
     useEffect(() => {
-        if (group?.name) {
+        if (group?.name && !initializedRef.current) {
             setNewName(group.name)
+            initializedRef.current = true
         }
     }, [group?.name])
 

@@ -13,25 +13,25 @@ export default function UserProfile({ onBack }: Props) {
 
     const [isSaving, setIsSaving] = useState(false)
     const [successMsg, setSuccessMsg] = useState(false)
-    const [name, setName] = useState(user?.displayName || '')
-    const [phone, setPhone] = useState(user?.phoneNumber || '')
-    const [position, setPosition] = useState(user?.mainPosition || '')
-    const [pixKey, setPixKey] = useState(user?.pixKey || '')
+    const [name, setName] = useState(() => user?.displayName || '')
+    const [phone, setPhone] = useState(() => user?.phoneNumber || '')
+    const [position, setPosition] = useState<string | undefined>(() => user?.mainPosition ?? undefined)
+    const [pixKey, setPixKey] = useState<string | undefined>(() => user?.pixKey ?? undefined)
 
     useEffect(() => {
         if (user) {
             setName(user.displayName || '')
             setPhone(user.phoneNumber || '')
-            setPosition(user.mainPosition || '')
-            setPixKey(user.pixKey || '')
+            setPosition(user.mainPosition ?? undefined)
+            setPixKey(user.pixKey ?? undefined)
         }
     }, [user])
 
     const hasChanges =
         name.trim() !== (user?.displayName || '') ||
         phone.trim() !== (user?.phoneNumber || '') ||
-        position !== (user?.mainPosition || '') ||
-        pixKey.trim() !== (user?.pixKey || '')
+        position !== (user?.mainPosition ?? undefined) ||
+        (pixKey || '').trim() !== (user?.pixKey || '')
 
     // Auth User meta
     const authMeta = authUser?.user_metadata as { avatar_url?: string } | null
@@ -48,8 +48,8 @@ export default function UserProfile({ onBack }: Props) {
         const ok = await updateProfile({
             displayName: name.trim(),
             phoneNumber: phone.trim() || null,
-            mainPosition: position as any,
-            pixKey: pixKey.trim() || null
+            mainPosition: (position as any) || null,
+            pixKey: pixKey?.trim() || null
         })
 
         if (ok) {
@@ -122,10 +122,11 @@ export default function UserProfile({ onBack }: Props) {
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold text-secondary-text uppercase tracking-wide px-1">Posição Principal</label>
                             <select
-                                value={position}
+                                value={position || ''}
                                 onChange={e => setPosition(e.target.value)}
                                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-semibold text-primary-text focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition-all outline-none appearance-none"
                             >
+                                <option value="" disabled>Selecione a posição</option>
                                 <option value="ATTACK">Ataque</option>
                                 <option value="DEFENSE">Defesa</option>
                                 <option value="GOALKEEPER">Goleiro</option>

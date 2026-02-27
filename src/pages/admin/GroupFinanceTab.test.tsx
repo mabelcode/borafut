@@ -27,26 +27,33 @@ describe('GroupFinanceTab Component', () => {
 
         // Factory for clean promises
         function createSupabaseChain(resolvedValue: any, overrides = {}) {
-            const chain: any = {
-                then: (resolve: any) => resolve(resolvedValue),
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                order: vi.fn().mockReturnThis(),
-                single: vi.fn().mockReturnThis(),
-                maybeSingle: vi.fn().mockReturnThis(),
-                update: vi.fn().mockReturnThis(),
+            const chain = Promise.resolve(resolvedValue) as any
+            const chainMethods = {
+                select: vi.fn().mockReturnValue(chain),
+                eq: vi.fn().mockReturnValue(chain),
+                order: vi.fn().mockReturnValue(chain),
+                single: vi.fn().mockReturnValue(chain),
+                maybeSingle: vi.fn().mockReturnValue(chain),
+                update: vi.fn().mockReturnValue(chain),
                 ...overrides
             }
+            Object.assign(chain, chainMethods)
             return chain
         }
 
         // Default generic mock
         ; (supabase.from as any).mockImplementation((table: string) => {
             if (table === 'users') {
-                return createSupabaseChain({ data: { pixKey: 'test@pix.com' }, error: null })
+                const chain = Promise.resolve({ data: { id: 'admin-123', pixKey: 'test@pix.com' }, error: null }) as any
+                chain.select = vi.fn().mockReturnValue(chain)
+                chain.eq = vi.fn().mockReturnValue(chain)
+                chain.single = vi.fn().mockReturnValue(chain)
+                chain.maybeSingle = vi.fn().mockReturnValue(chain)
+                chain.update = vi.fn().mockReturnValue(chain)
+                return chain
             }
             if (table === 'groups') {
-                return createSupabaseChain({ data: { pixKey: 'test@pix.com' }, error: null })
+                return createSupabaseChain({ data: { id: 'group-123', pixKey: 'test@pix.com' }, error: null })
             }
             if (table === 'group_members') {
                 return createSupabaseChain({ data: [], error: null })
@@ -80,29 +87,31 @@ describe('GroupFinanceTab Component', () => {
     })
 
     it('handles PIX key update', async () => {
-        const mockUpdate = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                then: (res: any) => res({ error: null })
-            })
-        })
+        const mockChain = Promise.resolve({ error: null }) as any
+        mockChain.eq = vi.fn().mockReturnValue(mockChain)
+        mockChain.select = vi.fn().mockReturnValue(mockChain)
+        const mockUpdate = vi.fn().mockReturnValue(mockChain)
 
             ; (supabase.from as any).mockImplementation((table: string) => {
                 if (table === 'users') {
-                    return {
-                        select: vi.fn().mockReturnThis(),
-                        eq: vi.fn().mockReturnThis(),
-                        single: vi.fn().mockReturnThis(),
-                        maybeSingle: vi.fn().mockReturnThis(),
-                        update: mockUpdate,
-                        then: (res: any) => res({ data: { pixKey: 'test@pix.com' }, error: null })
-                    }
+                    const chain = Promise.resolve({ data: { id: 'admin-123', pixKey: 'test@pix.com' }, error: null }) as any
+                    chain.select = vi.fn().mockReturnValue(chain)
+                    chain.eq = vi.fn().mockReturnValue(chain)
+                    chain.single = vi.fn().mockReturnValue(chain)
+                    chain.maybeSingle = vi.fn().mockReturnValue(chain)
+                    chain.update = mockUpdate
+                    return chain
                 }
                 if (table === 'group_members') {
-                    return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), then: (res: any) => res({ data: [], error: null }) }
+                    const chain = Promise.resolve({ data: [], error: null }) as any
+                    chain.select = vi.fn().mockReturnValue(chain)
+                    chain.eq = vi.fn().mockReturnValue(chain)
+                    return chain
                 }
-                return {
-                    select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), then: (res: any) => res({ data: mockPendingRegs, error: null })
-                }
+                const pendingChain = Promise.resolve({ data: mockPendingRegs, error: null }) as any
+                pendingChain.select = vi.fn().mockReturnValue(pendingChain)
+                pendingChain.eq = vi.fn().mockReturnValue(pendingChain)
+                return pendingChain
             })
 
         render(<GroupFinanceTab groupId={mockGroupId} />)
@@ -125,27 +134,32 @@ describe('GroupFinanceTab Component', () => {
     })
 
     it('applies status guard when confirming payment', async () => {
-        const mockUpdate = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnThis(),
-            select: vi.fn().mockReturnThis(),
-            then: (res: any) => res({ error: null })
-        })
+        const updateChain = Promise.resolve({ error: null }) as any
+        updateChain.eq = vi.fn().mockReturnValue(updateChain)
+        updateChain.select = vi.fn().mockReturnValue(updateChain)
+        const mockUpdate = vi.fn().mockReturnValue(updateChain)
 
             ; (supabase.from as any).mockImplementation((table: string) => {
                 if (table === 'match_registrations') {
-                    return {
-                        select: vi.fn().mockReturnThis(),
-                        eq: vi.fn().mockReturnThis(),
-                        order: vi.fn().mockReturnThis(),
-                        update: mockUpdate,
-                        then: (res: any) => res({ data: mockPendingRegs, error: null })
-                    }
+                    const chain = Promise.resolve({ data: mockPendingRegs, error: null }) as any
+                    chain.select = vi.fn().mockReturnValue(chain)
+                    chain.eq = vi.fn().mockReturnValue(chain)
+                    chain.order = vi.fn().mockReturnValue(chain)
+                    chain.update = mockUpdate
+                    return chain
                 }
                 if (table === 'users') {
-                    return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), maybeSingle: vi.fn().mockReturnThis(), then: (res: any) => res({ data: { pixKey: 'test@pix.com' }, error: null }) }
+                    const chain = Promise.resolve({ data: { pixKey: 'test@pix.com' }, error: null }) as any
+                    chain.select = vi.fn().mockReturnValue(chain)
+                    chain.eq = vi.fn().mockReturnValue(chain)
+                    chain.maybeSingle = vi.fn().mockReturnValue(chain)
+                    return chain
                 }
                 if (table === 'group_members') {
-                    return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), then: (res: any) => res({ data: [], error: null }) }
+                    const chain = Promise.resolve({ data: [], error: null }) as any
+                    chain.select = vi.fn().mockReturnValue(chain)
+                    chain.eq = vi.fn().mockReturnValue(chain)
+                    return chain
                 }
             })
 

@@ -41,12 +41,14 @@ export function useUserProfileData(userId?: string) {
             if (groupErr) throw groupErr
 
             // Type assertions because the join returns arrays/objects
-            const formattedGroups: ProfileGroup[] = (groupData || []).map((gm: any) => ({
-                id: gm.groups.id,
-                name: gm.groups.name,
-                role: gm.role,
-                joinedAt: gm.joinedAt
-            }))
+            const formattedGroups: ProfileGroup[] = (groupData || [])
+                .filter((gm: any) => gm.groups)
+                .map((gm: any) => ({
+                    id: gm.groups.id,
+                    name: gm.groups.name,
+                    role: gm.role,
+                    joinedAt: gm.joinedAt
+                }))
 
             // 2. Fetch Match History (Registrations where status === 'CONFIRMED')
             // Limited to the last 10 for the profile page
@@ -63,13 +65,14 @@ export function useUserProfileData(userId?: string) {
 
             if (matchErr) throw matchErr
 
-            const formattedHistory: ProfileMatch[] = (matchData || []).map((reg: any) => ({
-                id: reg.matches.id,
-                title: reg.matches.title,
-                scheduledAt: reg.matches.scheduledAt,
-                groupId: reg.matches.groupId,
-                groupName: reg.matches.groups.name
-            }))
+            const formattedHistory: ProfileMatch[] = (matchData || [])
+                .map((reg: any) => ({
+                    id: reg.matches?.id ?? '',
+                    title: reg.matches?.title ?? null,
+                    scheduledAt: reg.matches?.scheduledAt ?? '',
+                    groupId: reg.matches?.groupId ?? '',
+                    groupName: reg.matches?.groups?.name ?? 'Unknown Group'
+                }))
 
             return { groups: formattedGroups, history: formattedHistory }
         }

@@ -1,20 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 /** Map of matchId → user's registration status in that match */
 export type MyRegistrationsMap = Record<string, 'RESERVED' | 'CONFIRMED' | 'WAITLIST'>
 
 export function useMyRegistrations() {
+    const { authUser } = useCurrentUser()
+    const userId = authUser?.id
+
     const { data: queryData, isLoading: loading, error: queryError } = useQuery({
-        queryKey: ['myRegistrations'],
+        queryKey: ['myRegistrations', userId],
+        enabled: !!userId,
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return {}
+            if (!userId) return {}
 
             const { data: rows, error } = await supabase
                 .from('match_registrations')
                 .select('matchId, status')
-                .eq('userId', user.id)
+                .eq('userId', userId)
 
             if (error) throw new Error(error.message)
 

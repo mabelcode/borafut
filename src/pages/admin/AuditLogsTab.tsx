@@ -16,10 +16,10 @@ interface AuditLog {
 }
 
 export default function AuditLogsTab() {
-    const { data: logsData, isLoading: loading } = useQuery({
+    const { data: logsData, isLoading: loading, isError, error } = useQuery({
         queryKey: ['adminAuditLogs'],
         queryFn: async () => {
-            const { data, error } = await supabase
+            const { data, error: supaError } = await supabase
                 .from('audit_log')
                 .select(`
                   *,
@@ -28,7 +28,7 @@ export default function AuditLogsTab() {
                 .order('createdAt', { ascending: false })
                 .limit(50)
 
-            if (error) throw error
+            if (supaError) throw supaError
             return (data as unknown as AuditLog[]) || []
         }
     })
@@ -54,6 +54,11 @@ export default function AuditLogsTab() {
             {loading ? (
                 <div className="flex justify-center py-10">
                     <Loader2 size={24} className="animate-spin text-secondary-text" />
+                </div>
+            ) : isError ? (
+                <div className="flex flex-col items-center gap-2 py-12 text-center text-red-500">
+                    <Info size={32} />
+                    <p className="text-sm">Erro ao carregar logs: {(error as Error)?.message || 'Erro desconhecido'}</p>
                 </div>
             ) : logs.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-12 text-center">

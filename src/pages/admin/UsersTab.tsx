@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Search, Loader2, ArrowRight, ShieldCheck, Calendar, User, Star, Layers } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -21,16 +22,13 @@ interface GlobalUser {
 }
 
 export default function UsersTab({ onSelectUser }: Props) {
-    const [users, setUsers] = useState<GlobalUser[]>([])
-    const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [sortBy, setSortBy] = useState<'NAME' | 'SCORE' | 'DATE' | 'GROUPS'>('NAME')
 
-    async function fetchUsers() {
-        try {
-            setLoading(true)
+    const { data: usersData, isLoading: loading } = useQuery({
+        queryKey: ['adminUsers'],
+        queryFn: async () => {
             logger.debug('Iniciando busca de usuários...')
-
             const { data, error } = await supabase
                 .from('users')
                 .select('*, group_members(count)')
@@ -39,19 +37,11 @@ export default function UsersTab({ onSelectUser }: Props) {
             if (error) throw error
 
             logger.debug('Usuários encontrados:', { count: data?.length, users: data })
-
-            // For now, let's fetch counts separately or accept 0 until we debug the join
-            setUsers(data as unknown as GlobalUser[] || [])
-        } catch (err) {
-            logger.error('Erro ao buscar usuários', err)
-        } finally {
-            setLoading(false)
+            return (data as unknown as GlobalUser[]) || []
         }
-    }
+    })
 
-    useEffect(() => {
-        fetchUsers()
-    }, [])
+    const users = usersData ?? []
 
     const filteredUsers = users.filter(u => {
         const nameMatch = u.displayName?.toLowerCase().includes(search.toLowerCase()) ?? false

@@ -94,7 +94,10 @@ group_members.role = 'ADMIN' | 'PLAYER'
 - Apenas `CONFIRMED`. Snake draft por posição + `globalScore`. Persiste `teamNumber`.
 
 ### E. Avaliação 360° (Pós-Jogo)
-- Nota 1–5. Atualiza `globalScore`.
+- **Não mandatório:** Jogadores escolhem se desejam realizar a avaliação.
+- **Escopo:** Cada jogador pode avaliar todos os demais participantes daquela partida específica.
+- **Nota 1–5:** Impacta o `globalScore` do jogador avaliado.
+- **Histórico:** Avaliações vinculadas à partida para consulta e composição do score.
 
 ### F. Painel Super Admin
 Acessível via ícone 🛡 no header da Home (visível apenas para `isSuperAdmin`).
@@ -119,6 +122,22 @@ Acessível via ícone 🛡 no header da Home (visível apenas para `isSuperAdmin
 - Metadados completos exibidos através de parse JSON para rápida auditoria.
 - Suporte estrito a traduções amigáveis do Dicionário de Auditoria (`MEMBER_UPDATED`, `PROMOTE_ADMIN`, etc).
 - Implementado via tabela `audit_log` no banco
+
+### G. Painel do Usuário (Perfil do Jogador)
+Acessível via ícone de avatar (foto de perfil) no header da Home. Garante autonomia ao jogador.
+
+**1. Identidade e Configurações**
+- **Foto de Perfil:** Obtida automaticamente via Supabase Auth (Google OAuth). Caso não exista falhe ou não tenha foto, usar as iniciais do `displayName`. **Não haverá suporte para upload de imagens (Supabase Storage) neste momento.**
+- **Edição Básica:** Permite alterar `displayName`, `mainPosition` e cadastrar/atualizar `pixKey`.
+- **Sessão:** Ação clara de "Sair da conta" (Logout).
+
+**2. Nível e Reputação**
+- Exibição de destaque do `globalScore` atual (1 a 5).
+- Estatísticas baseadas no histórico (ex: quantidade de partidas jogadas na plataforma).
+
+**3. Histórico e Vínculos**
+- **Grupos (Bolhas):** Lista de todos os grupos do qual o usuário é membro. **O usuário tem autonomia para se auto-remover (Sair do Grupo) a qualquer momento.**
+- **Histórico de Partidas:** Lista cronológica das partidas anteriores onde o status foi `CONFIRMED`. Clique leva aos detalhes da partida (para preencher as avaliações 360°, por exemplo).
 
 ---
 
@@ -238,6 +257,7 @@ audit_log (
 - **Snake draft:** Distribuição alternada por posição + score.
 - **Snapshot:** `snapshotScore` e `snapshotPosition` preservam histórico ao sortear.
 - **Pix:** `pixKey` em `users`. QR Code 100% frontend via `qrcode-pix` + `react-qr-code`.
+- **Avaliações Pós-Jogo:** Opcionais (não mandatórias). Um jogador pode avaliar qualquer outro que participou da mesma partida. O registro é vinculado à partida e a média das notas atualiza o `globalScore`.
 - **Taxa:** 5% informativa no MVP.
 - **Bolha:** visibilidade escopada ao `groupId`. Sem grupo → tela "Aguardando convite".
 - **Link de convite:** multi-uso, duração opcional via `inviteExpiresAt`.

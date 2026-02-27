@@ -1,47 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { logger } from '@/lib/logger'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 /** Map of matchId → user's registration status in that match */
 export type MyRegistrationsMap = Record<string, 'RESERVED' | 'CONFIRMED' | 'WAITLIST'>
 
 export function useMyRegistrations() {
-    const [data, setData] = useState<MyRegistrationsMap>({})
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const { authUser } = useCurrentUser()
+    const userId = authUser?.id
 
-    useEffect(() => {
-        let isMounted = true
+    const { data: queryData, isLoading: loading, error: queryError } = useQuery({
+        queryKey: ['myRegistrations', userId],
+        enabled: !!userId,
+        queryFn: async () => {
+            if (!userId) return {}
 
-        async function fetchRegistrations() {
-            try {
-                setLoading(true)
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) return
+            const { data: rows, error } = await supabase
+                .from('match_registrations')
+                .select('matchId, status')
+                .eq('userId', userId)
 
-                const { data: rows, error } = await supabase
-                    .from('match_registrations')
-                    .select('matchId, status')
-                    .eq('userId', user.id)
+            if (error) throw new Error(error.message)
 
-                if (error) throw error
-
-                if (isMounted) {
-                    const map: MyRegistrationsMap = {}
-                    for (const row of rows ?? []) map[row.matchId] = row.status
-                    setData(map)
-                }
-            } catch (err: unknown) {
-                logger.error('Erro ao buscar reservas do usuário', err)
-                if (isMounted) setError(err instanceof Error ? err.message : 'Erro desconhecido')
-            } finally {
-                if (isMounted) setLoading(false)
-            }
+            const map: MyRegistrationsMap = {}
+            for (const row of rows ?? []) map[row.matchId] = row.status
+            return map
         }
+    })
 
-        fetchRegistrations()
-        return () => { isMounted = false }
-    }, [])
+    const data = queryData ?? {}
+    const error = queryError ? queryError.message : null
 
     return { data, loading, error }
 }

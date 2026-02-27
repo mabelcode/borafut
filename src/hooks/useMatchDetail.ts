@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 export interface Registration {
@@ -26,43 +26,36 @@ export interface MatchDetailData {
 }
 
 export function useMatchDetail(matchId: string) {
-    const [data, setData] = useState<MatchDetailData | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const { data, isLoading: loading, error: queryError, refetch } = useQuery({
+        queryKey: ['matchDetail', matchId],
+        enabled: !!matchId,
+        queryFn: async () => {
+            const response = await supabase.auth.getUser()
+            if (response.error) throw response.error
+            const authUser = response.data.user
+            if (!authUser) throw new Error('User not authenticated')
 
-    async function fetch() {
-        setLoading(true)
-        setError(null)
+            const [matchRes, regRes] = await Promise.all([
+                supabase.from('matches').select('*').eq('id', matchId).single(),
+                supabase
+                    .from('match_registrations')
+                    .select('id, userId, status, teamNumber, users(displayName, mainPosition, globalScore)')
+                    .eq('matchId', matchId)
+                    .in('status', ['RESERVED', 'CONFIRMED', 'WAITLIST'])
+                    .order('createdAt', { ascending: true }),
+            ])
 
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        if (!authUser) { setLoading(false); return }
+            if (matchRes.error) throw new Error(matchRes.error.message)
+            if (regRes.error) throw new Error(regRes.error.message)
 
-        const [matchRes, regRes] = await Promise.all([
-            supabase.from('matches').select('*').eq('id', matchId).single(),
-            supabase
-                .from('match_registrations')
-                .select('id, userId, status, teamNumber, users(displayName, mainPosition, globalScore)')
-                .eq('matchId', matchId)
-                .in('status', ['RESERVED', 'CONFIRMED', 'WAITLIST'])
-                .order('createdAt', { ascending: true }),
-        ])
+            const registrations = (regRes.data ?? []) as unknown as Registration[]
+            const myRegistration = registrations.find(r => r.userId === authUser.id) ?? null
 
-        if (matchRes.error) { setError(matchRes.error.message); setLoading(false); return }
+            return { ...matchRes.data, registrations, myRegistration } as MatchDetailData
+        }
+    })
 
-        const registrations = (regRes.data ?? []) as unknown as Registration[]
-        const myRegistration = registrations.find(r => r.userId === authUser.id) ?? null
+    const error = queryError ? queryError.message : null
 
-        setData({ ...matchRes.data, registrations, myRegistration })
-        setLoading(false)
-    }
-
-    useEffect(() => {
-        let isMounted = true
-        queueMicrotask(() => {
-            if (isMounted) fetch()
-        })
-        return () => { isMounted = false }
-    }, [matchId])
-
-    return { data, loading, error, refetch: fetch }
+    return { data: data ?? null, loading, error, refetch }
 }

@@ -1,6 +1,8 @@
-import * as Sentry from '@sentry/react'
-import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import * as Sentry from '@sentry/react'
+
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { logger } from '@/lib/logger'
 import type { Session } from '@supabase/supabase-js'
 import Login from '@/pages/Login'
@@ -15,6 +17,7 @@ import SuperAdmin from './pages/SuperAdmin'
 import GroupAdmin from './pages/GroupAdmin'
 import GroupDetailsView from './pages/admin/GroupDetailsView'
 import UserDetailsView from './pages/admin/UserDetailsView'
+import UserProfile from '@/pages/UserProfile'
 import Layout from '@/components/Layout'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
@@ -49,6 +52,7 @@ type AppState =
   | 'super-admin-group'
   | 'super-admin-user'
   | 'group-admin'
+  | 'user-profile'
 
 /** Reads ?token= from the current URL without changing history */
 function getInviteToken(): string | null {
@@ -71,6 +75,7 @@ const STATE_TITLES: Record<AppState, string | undefined> = {
   'match-detail': 'Detalhes da Partida',
   'admin-settings': 'Configurações do Grupo',
   'group-admin': 'Painel do Admin',
+  'user-profile': 'Meu Perfil',
   'waiting-for-invite': 'Início',
   'join-group': 'Entrar no Grupo',
   'loading': undefined,
@@ -192,8 +197,9 @@ export function AppInner({
 
   return (
     <Layout
-      title={STATE_TITLES[appState]}
+      title={STATE_TITLES[appState] || 'Borafut'}
       user={user}
+      authMeta={session.user.user_metadata}
       onHome={() => setAppState('home')}
       onSignOut={async () => {
         await supabase.auth.signOut()
@@ -201,6 +207,7 @@ export function AppInner({
       }}
       onSuperAdmin={() => setAppState('super-admin')}
       onGroupAdmin={() => setAppState('group-admin')}
+      onProfile={() => setAppState('user-profile')}
       isAdmin={isAdminInAnyGroup}
     >
       {appState === 'join-group' && inviteToken && (
@@ -302,51 +309,79 @@ export function AppInner({
           onBack={() => setAppState('home')}
         />
       )}
+
+      {appState === 'user-profile' && (
+        <UserProfile onBack={() => setAppState('home')} />
+      )}
     </Layout>
   )
 }
 
 // Root component handles auth only
 export default function App() {
+  const queryClient = useQueryClient()
   const [session, setSession] = useState<Session | null>(null)
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false)
   const [appState, setAppState] = useState<AppState>('loading')
   const [inviteToken] = useState<string | null>(getInviteToken)
 
-  async function bootstrap(newSession: Session | null) {
-    if (!newSession) {
-      setSession(null)
-      setAppState('login')
-      Sentry.setUser(null)
-      return
-    }
-
-    setSession(newSession)
-    Sentry.setUser({
-      id: newSession.user.id,
-      email: newSession.user.email,
-    })
-
-    // Check if user has a profile (displayName set = completed onboarding)
-    const { data } = await supabase
-      .from('users')
-      .select('displayName')
-      .eq('id', newSession.user.id)
-      .maybeSingle()
-
-    if (!data?.displayName) {
-      setAppState('onboarding')
-    } else {
-      setAppState('loading') // AppInner will route based on groups
-    }
-  }
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => bootstrap(data.session))
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setIsSessionLoaded(true)
+    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      bootstrap(session)
+      setSession(session)
+      setIsSessionLoaded(true)
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  const { data: profileCheck, isLoading: checkingProfile, error: profileError } = useQuery({
+    queryKey: ['checkProfile', session?.user.id],
+    queryFn: async () => {
+      if (!session) return null
+      const { data, error } = await supabase
+        .from('users')
+        .select('displayName')
+        .eq('id', session.user.id)
+        .maybeSingle()
+      if (error) throw error
+      return data || { displayName: null }
+    },
+    enabled: !!session,
+    staleTime: Infinity,
+    gcTime: Infinity
+  })
+
+  useEffect(() => {
+    if (!isSessionLoaded) return
+
+    if (!session) {
+      queueMicrotask(() => {
+        setAppState('login')
+        Sentry.setUser(null)
+      })
+      return
+    }
+
+    queueMicrotask(() => {
+      Sentry.setUser({
+        id: session.user.id,
+        email: session.user.email,
+      })
+    })
+
+    if (!checkingProfile && profileCheck !== undefined && !profileError) {
+      queueMicrotask(() => {
+        if (!profileCheck?.displayName) {
+          setAppState('onboarding')
+        } else {
+          setAppState('loading') // AppInner will route based on groups
+        }
+      })
+    }
+  }, [session, isSessionLoaded, checkingProfile, profileCheck, profileError])
 
   if (appState === 'loading' && !session) {
     return (
@@ -372,7 +407,10 @@ export default function App() {
         <div className="mx-auto max-w-md px-4 py-8">
           <Onboarding
             session={session}
-            onComplete={() => setAppState('loading')}
+            onComplete={() => {
+              queryClient.invalidateQueries({ queryKey: ['checkProfile', session.user.id] })
+              setAppState('loading')
+            }}
             onSignOut={() => setAppState('login')}
           />
         </div>

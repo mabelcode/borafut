@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Users, Shield, User, Loader2, Star, Calendar, Share2, Check, UserPlus, Search, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -41,17 +42,12 @@ interface SearchUser {
 }
 
 export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewProps) {
+    const queryClient = useQueryClient()
     const { user } = useCurrentUser()
-    const [group, setGroup] = useState<GroupDetail | null>(null)
-    const [members, setMembers] = useState<GroupMember[]>([])
-    const [loading, setLoading] = useState(true)
     const [copied, setCopied] = useState(false)
     const [isAddingMember, setIsAddingMember] = useState(false)
-    const [globalUsers, setGlobalUsers] = useState<SearchUser[]>([])
     const [searchUser, setSearchUser] = useState('')
-    const [addingUser, setAddingUser] = useState<string | null>(null)
     const [addedInSession, setAddedInSession] = useState<string[]>([])
-    const [updatingRole, setUpdatingRole] = useState<string | null>(null)
     const [sortBy, setSortBy] = useState<'ROLE' | 'NAME' | 'SCORE' | 'DATE'>('ROLE')
 
     const sortOptions: SortOption<'ROLE' | 'NAME' | 'SCORE' | 'DATE'>[] = [
@@ -61,65 +57,45 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
         { id: 'DATE', label: 'DATA', icon: Calendar },
     ]
 
-    async function fetchDetails(silent = false) {
-        try {
-            if (!silent) setLoading(true)
-
-            // Fetch group metadata
-            const { data: groupData, error: groupError } = await supabase
-                .from('groups')
-                .select('*')
-                .eq('id', groupId)
-                .single()
-
-            if (groupError) throw groupError
-            setGroup(groupData)
-
-            // Fetch members with user details
-            const { data: membersData, error: membersError } = await supabase
-                .from('group_members')
-                .select(`
-                    id,
-                    role,
-                    joinedAt,
+    const { data: detailsData, isLoading: loading } = useQuery({
+        queryKey: ['adminGroupDetails', groupId],
+        queryFn: async () => {
+            const [groupRes, membersRes] = await Promise.all([
+                supabase.from('groups').select('*').eq('id', groupId).single(),
+                supabase.from('group_members').select(`
+                    id, role, joinedAt,
                     user:users(id, displayName, mainPosition, globalScore, isSuperAdmin)
-                `)
-                .eq('groupId', groupId)
+                `).eq('groupId', groupId)
+            ])
 
-            if (membersError) throw membersError
+            if (groupRes.error) throw groupRes.error
+            if (membersRes.error) throw membersRes.error
 
-            setMembers(membersData as unknown as GroupMember[] || [])
-
-        } catch (err) {
-            logger.error('Erro ao buscar detalhes do grupo', err)
-        } finally {
-            setLoading(false)
+            return {
+                group: groupRes.data as GroupDetail,
+                members: membersRes.data as unknown as GroupMember[]
+            }
         }
-    }
+    })
 
-    const fetchGlobalUsers = async () => {
-        try {
+    const group = detailsData?.group ?? null
+    const members = detailsData?.members ?? []
+
+    const { data: globalUsersData } = useQuery({
+        queryKey: ['adminGlobalUsers'],
+        enabled: isAddingMember,
+        queryFn: async () => {
             const { data, error } = await supabase
                 .from('users')
                 .select('id, displayName, phoneNumber, mainPosition, globalScore')
                 .limit(50)
 
             if (error) throw error
-            setGlobalUsers(data || [])
-        } catch (err) {
-            logger.error('Erro ao buscar usuários globais', err)
+            return (data || []) as SearchUser[]
         }
-    }
+    })
 
-    useEffect(() => {
-        fetchDetails()
-    }, [groupId])
-
-    useEffect(() => {
-        if (isAddingMember) {
-            fetchGlobalUsers()
-        }
-    }, [isAddingMember])
+    const globalUsers = globalUsersData ?? []
 
     async function handleShare() {
         if (!group) return
@@ -148,49 +124,39 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
         }
     }
 
-    async function handleAddMember(userId: string) {
-        try {
-            setAddingUser(userId)
-
+    const addMemberMutation = useMutation({
+        mutationFn: async (userId: string) => {
             const { error: insertError } = await supabase
                 .from('group_members')
-                .insert({
-                    groupId: groupId,
-                    userId: userId,
-                    role: 'PLAYER'
-                })
+                .insert({ groupId, userId, role: 'PLAYER' })
 
             if (insertError) throw insertError
 
-            // Audit
-            await supabase.from('audit_log').insert({
+            return userId
+        },
+        onSuccess: (userId) => {
+            supabase.from('audit_log').insert({
                 actorId: user?.id,
                 action: 'ADD_GROUP_MEMBER',
-                groupId: groupId,
+                groupId,
                 metadata: { addedUserId: userId }
-            })
-
+            }).then()
             logger.info('Membro adicionado diretamente pelo Super Admin', { groupId, userId })
-
-            // Refresh
-            await fetchDetails(true)
+            queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
             setAddedInSession(prev => [...prev, userId])
-        } catch (err) {
-            logger.error('Erro ao adicionar membro', err)
-        } finally {
-            setAddingUser(null)
-        }
+        },
+        onError: (err) => logger.error('Erro ao adicionar membro', err)
+    })
+
+    async function handleAddMember(userId: string) {
+        addMemberMutation.mutate(userId)
     }
 
-    async function handleToggleRole(memberId: string, currentRole: 'ADMIN' | 'PLAYER', userId: string) {
-        if (updatingRole) return
-
-        try {
-            setUpdatingRole(memberId)
+    const toggleRoleMutation = useMutation({
+        mutationFn: async ({ memberId, currentRole, userId }: { memberId: string, currentRole: 'ADMIN' | 'PLAYER', userId: string }) => {
             const newRole = currentRole === 'ADMIN' ? 'PLAYER' : 'ADMIN'
             const action = newRole === 'ADMIN' ? 'PROMOTE_ADMIN' : 'DEMOTE_PLAYER'
 
-            // Update role in DB
             const { error: updateError } = await supabase
                 .from('group_members')
                 .update({ role: newRole })
@@ -198,25 +164,26 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
 
             if (updateError) throw updateError
 
-            // Log administrative action
-            await supabase.from('audit_log').insert({
+            return { memberId, newRole, action, userId }
+        },
+        onSuccess: ({ memberId, newRole, action, userId }) => {
+            supabase.from('audit_log').insert({
                 actorId: user?.id,
-                action: action,
-                groupId: groupId,
+                action,
+                groupId,
                 targetId: userId,
                 targetType: 'user',
                 metadata: { memberId }
-            })
+            }).then()
 
             logger.info(`Membro ${newRole === 'ADMIN' ? 'promovido' : 'rebaixado'}`, { memberId, newRole })
+            queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
+        },
+        onError: (err) => logger.error('Erro ao alternar cargo do membro', err)
+    })
 
-            // Refresh details to update UI
-            await fetchDetails(true)
-        } catch (err) {
-            logger.error('Erro ao alternar cargo do membro', err)
-        } finally {
-            setUpdatingRole(null)
-        }
+    async function handleToggleRole(memberId: string, currentRole: 'ADMIN' | 'PLAYER', userId: string) {
+        toggleRoleMutation.mutate({ memberId, currentRole, userId })
     }
 
     const sortedMembers = useMemo(() => {
@@ -321,10 +288,10 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                                     </div>
                                     <button
                                         onClick={() => handleAddMember(u.id)}
-                                        disabled={addingUser === u.id}
+                                        disabled={addMemberMutation.isPending && addMemberMutation.variables === u.id}
                                         className="bg-brand-green/10 text-brand-green text-[10px] font-bold px-4 py-2.5 rounded-xl hover:bg-brand-green/20 active:scale-95 transition-all flex items-center gap-1.5 shrink-0"
                                     >
-                                        {addingUser === u.id ? (
+                                        {(addMemberMutation.isPending && addMemberMutation.variables === u.id) ? (
                                             <Loader2 size={12} className="animate-spin" />
                                         ) : addedInSession.includes(u.id) ? (
                                             <Check size={14} className="text-brand-green" />
@@ -459,13 +426,13 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                                     {!member.user?.isSuperAdmin && (
                                         <button
                                             onClick={() => handleToggleRole(member.id, member.role, member.user?.id || '')}
-                                            disabled={updatingRole === member.id}
+                                            disabled={toggleRoleMutation.isPending && toggleRoleMutation.variables?.memberId === member.id}
                                             className={`text-[9px] font-bold px-2 py-1.5 rounded-lg border transition-all active:scale-95 flex items-center gap-1.5 ${member.role === 'ADMIN'
                                                 ? 'bg-gray-50 text-secondary-text border-gray-100 hover:bg-gray-100'
                                                 : 'bg-brand-green/5 text-brand-green border-brand-green/10 hover:bg-brand-green/10'
                                                 }`}
                                         >
-                                            {updatingRole === member.id ? (
+                                            {(toggleRoleMutation.isPending && toggleRoleMutation.variables?.memberId === member.id) ? (
                                                 <Loader2 size={10} className="animate-spin" />
                                             ) : member.role === 'ADMIN' ? (
                                                 <>

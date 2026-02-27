@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 
@@ -23,15 +23,20 @@ export interface GroupMembership {
     inviteExpiresAt: string | null
 }
 
-export function useCurrentUser() {
-    const [user, setUser] = useState<UserProfile | null>(null)
-    const [groups, setGroups] = useState<GroupMembership[]>([])
-    const [loading, setLoading] = useState(true)
+export interface CurrentUserQueryData {
+    user: UserProfile | null
+    groups: GroupMembership[]
+    authUser: import('@supabase/supabase-js').User | null
+}
 
-    async function fetchUser() {
-        try {
+export function useCurrentUser() {
+    const queryClient = useQueryClient()
+
+    const { data, isLoading: loading, refetch } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: async () => {
             const { data: { user: authUser } } = await supabase.auth.getUser()
-            if (!authUser) { setLoading(false); return }
+            if (!authUser) return { user: null, groups: [], authUser: null }
 
             const [profileRes, membershipsRes] = await Promise.all([
                 supabase.from('users').select('*').eq('id', authUser.id).maybeSingle(),
@@ -41,10 +46,8 @@ export function useCurrentUser() {
                     .eq('userId', authUser.id),
             ])
 
-            if (profileRes.error) logger.error('Erro ao buscar perfil do usuário', profileRes.error)
-            if (membershipsRes.error) logger.error('Erro ao buscar memberships', membershipsRes.error)
-
-            setUser(profileRes.data ?? null)
+            if (profileRes.error) throw profileRes.error
+            if (membershipsRes.error) throw membershipsRes.error
 
             const rawMemberships = (membershipsRes.data ?? []) as unknown as {
                 role: 'ADMIN' | 'PLAYER'
@@ -53,29 +56,69 @@ export function useCurrentUser() {
                     name: string
                     inviteToken: string
                     inviteExpiresAt: string | null
-                }
+                } | null
             }[]
 
-            const memberships: GroupMembership[] = rawMemberships.map(m => ({
-                groupId: m.groups.id,
-                groupName: m.groups.name,
-                role: m.role,
-                inviteToken: m.groups.inviteToken,
-                inviteExpiresAt: m.groups.inviteExpiresAt,
-            }))
-            setGroups(memberships)
-        } catch (err) {
-            logger.error('Erro inesperado ao buscar dados do usuário', err)
-        } finally {
-            setLoading(false)
+            const memberships: GroupMembership[] = rawMemberships
+                .filter(m => m.groups !== null)
+                .map(m => ({
+                    groupId: m.groups!.id,
+                    groupName: m.groups!.name,
+                    role: m.role,
+                    inviteToken: m.groups!.inviteToken,
+                    inviteExpiresAt: m.groups!.inviteExpiresAt,
+                }))
+
+            return {
+                user: (profileRes.data ?? null) as UserProfile | null,
+                groups: memberships,
+                authUser,
+            }
+        }
+    })
+
+    const user = data?.user ?? null
+    const groups = data?.groups ?? []
+    const authUser = data?.authUser ?? null
+
+    const updateProfileMutation = useMutation({
+        mutationFn: async (updates: Partial<Omit<UserProfile, 'id' | 'createdAt' | 'isSuperAdmin'>>) => {
+            if (!user) throw new Error('No user data')
+            const { error: err } = await supabase
+                .from('users')
+                .update(updates)
+                .eq('id', user.id)
+
+            if (err) throw err
+            return updates
+        },
+        onSuccess: (updates) => {
+            logger.info('User profile updated successfully')
+            queryClient.setQueryData<CurrentUserQueryData>(['currentUser'], (oldData) => {
+                if (!oldData || !oldData.user) return oldData
+                return {
+                    ...oldData,
+                    user: { ...oldData.user, ...updates }
+                }
+            })
+        },
+        onError: (err) => {
+            logger.error('Error updating user profile', err)
+        }
+    })
+
+    const updateProfile = async (updates: Partial<Omit<UserProfile, 'id' | 'createdAt' | 'isSuperAdmin'>>) => {
+        try {
+            await updateProfileMutation.mutateAsync(updates)
+            return true
+        } catch {
+            return false
         }
     }
-
-    useEffect(() => { fetchUser() }, [])
 
     // Derived helpers
     const isAdminInAnyGroup = user?.isSuperAdmin || groups.some(g => g.role === 'ADMIN')
     const adminGroups = user?.isSuperAdmin ? groups : groups.filter(g => g.role === 'ADMIN')
 
-    return { user, groups, loading, isAdminInAnyGroup, adminGroups, refetch: fetchUser }
+    return { user, groups, authUser, loading, isAdminInAnyGroup, adminGroups, refetch, updateProfile }
 }

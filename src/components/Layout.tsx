@@ -1,4 +1,4 @@
-import { LogOut, ShieldCheck, ShieldAlert, Loader2, Menu, X, Home, ChevronRight } from 'lucide-react'
+import { LogOut, ShieldCheck, ShieldAlert, Loader2, Menu, X, Home, ChevronRight, User } from 'lucide-react'
 import BrandLogo from './BrandLogo'
 import { useState, useEffect } from 'react'
 import type { UserProfile } from '@/hooks/useCurrentUser'
@@ -10,11 +10,12 @@ interface Props {
     onSignOut: () => void
     onSuperAdmin: () => void
     onGroupAdmin: () => void
+    onProfile: () => void
     isAdmin?: boolean
+    authMeta?: { avatar_url?: string } | null
     children: React.ReactNode
 }
-
-export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, onGroupAdmin, isAdmin, children }: Props) {
+export default function Layout({ title, user, authMeta, onHome, onSignOut, onSuperAdmin, onGroupAdmin, onProfile, isAdmin, children }: Props) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [signingOut, setSigningOut] = useState(false)
 
@@ -90,9 +91,16 @@ export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, o
                     {/* Sidebar Header: Profile */}
                     <div className="p-6 pt-10 flex flex-col gap-4 border-b border-gray-50">
                         <div className="flex items-center justify-between">
-                            <div className="size-14 rounded-2xl bg-brand-green/10 text-brand-green flex items-center justify-center text-xl font-bold border border-brand-green/20 shadow-inner">
-                                {initials}
-                            </div>
+                            <button
+                                onClick={() => { onProfile(); setIsMenuOpen(false) }}
+                                className="size-14 rounded-2xl bg-brand-green/10 text-brand-green flex items-center justify-center text-xl font-bold border border-brand-green/20 shadow-inner overflow-hidden"
+                            >
+                                {authMeta?.avatar_url ? (
+                                    <img src={authMeta.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    initials
+                                )}
+                            </button>
                             <button
                                 onClick={() => setIsMenuOpen(false)}
                                 className="size-10 flex items-center justify-center rounded-xl hover:bg-gray-50 transition-colors"
@@ -118,6 +126,17 @@ export default function Layout({ title, user, onHome, onSignOut, onSuperAdmin, o
                                 <Home size={18} />
                             </div>
                             <span>Início</span>
+                            <ChevronRight size={16} className="ml-auto text-gray-200" />
+                        </button>
+
+                        <button
+                            onClick={() => { onProfile(); setIsMenuOpen(false) }}
+                            className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-sm font-bold text-primary-text hover:bg-gray-50 active:scale-[0.98] transition-all group"
+                        >
+                            <div className="size-9 rounded-xl flex items-center justify-center bg-gray-50 text-secondary-text group-hover:bg-brand-green/10 group-hover:text-brand-green transition-colors">
+                                <User size={18} />
+                            </div>
+                            <span>Meu Perfil</span>
                             <ChevronRight size={16} className="ml-auto text-gray-200" />
                         </button>
 

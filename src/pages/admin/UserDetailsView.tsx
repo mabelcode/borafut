@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Shield, Star, Calendar, Loader2, Save, Trash2, Hash, Smartphone, MapPin, Inbox, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -36,99 +37,95 @@ const POSITIONS = [
 ]
 
 export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIEW' }: Props) {
-    const [user, setUser] = useState<UserProfile | null>(null)
-    const [memberships, setMemberships] = useState<GroupMembership[]>([])
-    const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
-    const [removingGroupId, setRemovingGroupId] = useState<string | null>(null)
+    const queryClient = useQueryClient()
     const [membershipToRemove, setMembershipToRemove] = useState<GroupMembership | null>(null)
 
     // Form states
-    const [score, setScore] = useState('')
-    const [position, setPosition] = useState('')
+    const [localScore, setLocalScore] = useState<string | null>(null)
+    const [localPosition, setLocalPosition] = useState<string | null>(null)
 
-    async function fetchUserData() {
-        try {
-            setLoading(true)
+    const { data: userData, isLoading: loading } = useQuery({
+        queryKey: ['adminUserDetails', userId],
+        queryFn: async () => {
+            const [profileRes, groupsRes] = await Promise.all([
+                supabase.from('users').select('*').eq('id', userId).single(),
+                supabase.from('group_members').select('*, group:groups(name)').eq('userId', userId)
+            ])
 
-            // Fetch profile
-            const { data: profile, error: profileError } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', userId)
-                .single()
+            if (profileRes.error) throw profileRes.error
+            if (groupsRes.error) throw groupsRes.error
 
-            if (profileError) throw profileError
-            setUser(profile)
-            setScore(profile.globalScore.toString())
-            setPosition(profile.mainPosition || '')
-
-            // Fetch memberships
-            const { data: groups, error: groupsError } = await supabase
-                .from('group_members')
-                .select('*, group:groups(name)')
-                .eq('userId', userId)
-
-            if (groupsError) throw groupsError
-            setMemberships(groups || [])
-
-        } catch (err) {
-            logger.error('Erro ao buscar dados do usuário', err)
-        } finally {
-            setLoading(false)
+            return {
+                user: profileRes.data as UserProfile,
+                memberships: (groupsRes.data || []) as GroupMembership[]
+            }
         }
-    }
+    })
 
-    useEffect(() => {
-        fetchUserData()
-    }, [userId])
+    const user = userData?.user ?? null
+    const memberships = userData?.memberships ?? []
+
+    const score = localScore !== null ? localScore : (user?.globalScore?.toString() ?? '')
+    const position = localPosition !== null ? localPosition : (user?.mainPosition ?? '')
+
+    const parsedScore = parseFloat(score)
+    const isValidScore = score !== '' && Number.isFinite(parsedScore)
 
     const hasChanges = user && (
-        parseFloat(score) !== user.globalScore ||
+        (isValidScore && parsedScore !== user.globalScore) ||
         (position || null) !== user.mainPosition
     )
 
-    async function handleUpdateProfile() {
-        if (!user || saving || !hasChanges) return
-        try {
-            setSaving(true)
-            const newScore = parseFloat(score) || 0
-
+    const updateProfileMutation = useMutation({
+        mutationFn: async ({ newScore, newPosition }: { newScore: number, newPosition: string | null }) => {
             const { error } = await supabase.rpc('admin_update_user_profile', {
                 p_user_id: userId,
                 p_global_score: newScore,
-                p_main_position: position || null
+                p_main_position: newPosition
             })
 
             if (error) throw error
+            return { newScore, newPosition }
+        },
+        onSuccess: ({ newScore, newPosition }) => {
+            setLocalScore(null)
+            setLocalPosition(null)
+            queryClient.invalidateQueries({ queryKey: ['adminUserDetails', userId] })
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] })
+            logger.info('Perfil atualizado com sucesso via RPC', { userId, score: newScore, position: newPosition })
+        },
+        onError: (err) => logger.error('Erro ao atualizar perfil', err)
+    })
 
-            logger.info('Perfil atualizado com sucesso via RPC', { userId, score: newScore, position })
-            setUser(prev => prev ? { ...prev, globalScore: newScore, mainPosition: position } : null)
-        } catch (err) {
-            logger.error('Erro ao atualizar perfil', err)
-        } finally {
-            setSaving(false)
-        }
+    async function handleUpdateProfile() {
+        if (!user || updateProfileMutation.isPending || !hasChanges) return
+        const parsedScore = parseFloat(score)
+        const newScore = (score !== '' && Number.isFinite(parsedScore)) ? parsedScore : user.globalScore
+        updateProfileMutation.mutate({ newScore, newPosition: position || null })
     }
 
-    async function handleRemoveFromGroup(groupId: string, membershipId: string) {
-        try {
-            setRemovingGroupId(groupId)
+    const removeGroupMutation = useMutation({
+        mutationFn: async ({ membershipId }: { membershipId: string, groupId: string }) => {
             const { error } = await supabase
                 .from('group_members')
                 .delete()
                 .eq('id', membershipId)
 
             if (error) throw error
-
-            logger.info('Usuário removido do grupo', { userId, groupId })
-            setMemberships(prev => prev.filter(m => m.id !== membershipId))
+            return membershipId
+        },
+        onSuccess: (_, { groupId }) => {
+            queryClient.invalidateQueries({ queryKey: ['adminUserDetails', userId] })
+            queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
+            queryClient.invalidateQueries({ queryKey: ['adminGroups'] })
             setMembershipToRemove(null)
-        } catch (err) {
-            logger.error('Erro ao remover usuário do grupo', err)
-        } finally {
-            setRemovingGroupId(null)
-        }
+            logger.info('Usuário removido do grupo', { userId, groupId })
+        },
+        onError: (err) => logger.error('Erro ao remover usuário do grupo', err)
+    })
+
+    async function handleRemoveFromGroup(groupId: string, membershipId: string) {
+        removeGroupMutation.mutate({ membershipId, groupId })
     }
 
     if (loading) {
@@ -204,7 +201,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                                 type="number"
                                                 step="0.1"
                                                 value={score}
-                                                onChange={(e) => setScore(e.target.value)}
+                                                onChange={(e) => setLocalScore(e.target.value)}
                                                 className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
                                             />
                                         </div>
@@ -215,7 +212,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-green" size={14} />
                                             <select
                                                 value={position || ''}
-                                                onChange={(e) => setPosition(e.target.value)}
+                                                onChange={(e) => setLocalPosition(e.target.value)}
                                                 className="w-full pl-9 pr-8 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all appearance-none cursor-pointer"
                                             >
                                                 {POSITIONS.map(p => (
@@ -228,13 +225,13 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
 
                                 <button
                                     onClick={handleUpdateProfile}
-                                    disabled={saving || !hasChanges}
-                                    className={`w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${hasChanges && !saving
+                                    disabled={updateProfileMutation.isPending || !hasChanges}
+                                    className={`w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${hasChanges && !updateProfileMutation.isPending
                                         ? 'bg-primary-text text-white hover:brightness-110 active:scale-95 shadow-lg'
                                         : 'bg-gray-100 text-secondary-text cursor-not-allowed'
                                         }`}
                                 >
-                                    {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                    {updateProfileMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                                     SALVAR ALTERAÇÕES
                                 </button>
                             </div>
@@ -274,11 +271,11 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                     {governanceLevel === 'SYSTEM' && (
                                         <button
                                             onClick={() => setMembershipToRemove(m)}
-                                            disabled={removingGroupId === m.groupId}
+                                            disabled={removeGroupMutation.isPending && removeGroupMutation.variables?.membershipId === m.id}
                                             className="size-10 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-xl transition-colors active:scale-90 disabled:opacity-50"
                                             title="Remover do Grupo"
                                         >
-                                            {removingGroupId === m.groupId ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                                            {(removeGroupMutation.isPending && removeGroupMutation.variables?.membershipId === m.id) ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
                                         </button>
                                     )}
                                 </div>
@@ -303,7 +300,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
                     <div
                         className="absolute inset-0 bg-primary-text/40 backdrop-blur-md animate-fade-in"
-                        onClick={() => !removingGroupId && setMembershipToRemove(null)}
+                        onClick={() => !removeGroupMutation.isPending && setMembershipToRemove(null)}
                     />
                     <div className="relative bg-surface w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-spring-up border border-gray-100">
                         <div className="p-8 flex flex-col gap-6">
@@ -326,7 +323,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                             <div className="flex gap-3 mt-2">
                                 <button
                                     type="button"
-                                    disabled={removingGroupId !== null}
+                                    disabled={removeGroupMutation.isPending}
                                     onClick={() => setMembershipToRemove(null)}
                                     className="flex-1 py-4 text-sm font-bold text-secondary-text hover:bg-gray-50 rounded-2xl transition-all"
                                 >
@@ -334,10 +331,10 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                 </button>
                                 <button
                                     onClick={() => handleRemoveFromGroup(membershipToRemove.groupId, membershipToRemove.id)}
-                                    disabled={removingGroupId !== null}
+                                    disabled={removeGroupMutation.isPending}
                                     className="flex-1 py-4 bg-brand-red text-white text-sm font-bold rounded-2xl shadow-lg shadow-brand-red/20 flex items-center justify-center gap-2 hover:brightness-105 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
                                 >
-                                    {removingGroupId !== null ? <Loader2 size={18} className="animate-spin" /> : 'Sim, Remover'}
+                                    {removeGroupMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : 'Sim, Remover'}
                                 </button>
                             </div>
                         </div>

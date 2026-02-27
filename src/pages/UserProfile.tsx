@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, Medal, UserRoundMinus } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useUserProfileData } from '@/hooks/useUserProfileData'
@@ -18,12 +18,15 @@ export default function UserProfile({ onBack }: Props) {
     const [position, setPosition] = useState<string | undefined>(() => user?.mainPosition ?? undefined)
     const [pixKey, setPixKey] = useState<string | undefined>(() => user?.pixKey ?? undefined)
 
+    const isInitialized = useRef(false)
+
     useEffect(() => {
-        if (user) {
+        if (user && !isInitialized.current) {
             setName(user.displayName || '')
             setPhone(user.phoneNumber || '')
             setPosition(user.mainPosition ?? undefined)
             setPixKey(user.pixKey ?? undefined)
+            isInitialized.current = true
         }
     }, [user])
 
@@ -64,9 +67,22 @@ export default function UserProfile({ onBack }: Props) {
     const handlePhoneChange = (val: string) => {
         const numbers = val.replace(/\D/g, '')
         if (numbers.length <= 11) {
+            const area = numbers.slice(0, 2)
+            const rest = numbers.slice(2)
+
             let masked = numbers
-            if (numbers.length > 2) masked = `(${numbers.slice(0, 2)}) ` + numbers.slice(2)
-            if (numbers.length > 7) masked = masked.slice(0, 10) + '-' + numbers.slice(10)
+            if (area) {
+                masked = rest ? `(${area}) ${rest}` : `(${area})`
+            }
+
+            if (rest.length > 4) {
+                if (numbers.length === 11) {
+                    masked = `(${area}) ` + rest.slice(0, 5) + '-' + rest.slice(5)
+                } else {
+                    masked = `(${area}) ` + rest.slice(0, 4) + '-' + rest.slice(4)
+                }
+            }
+
             setPhone(masked)
         }
     }

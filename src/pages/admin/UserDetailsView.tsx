@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Shield, Star, Calendar, Loader2, Save, Trash2, Hash, Smartphone, MapPin, Inbox, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -41,8 +41,8 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
     const [membershipToRemove, setMembershipToRemove] = useState<GroupMembership | null>(null)
 
     // Form states
-    const [score, setScore] = useState('')
-    const [position, setPosition] = useState('')
+    const [localScore, setLocalScore] = useState<string | null>(null)
+    const [localPosition, setLocalPosition] = useState<string | null>(null)
 
     const { data: userData, isLoading: loading } = useQuery({
         queryKey: ['adminUserDetails', userId],
@@ -65,12 +65,8 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
     const user = userData?.user ?? null
     const memberships = userData?.memberships ?? []
 
-    useEffect(() => {
-        if (user) {
-            setScore(user.globalScore.toString())
-            setPosition(user.mainPosition || '')
-        }
-    }, [user])
+    const score = localScore !== null ? localScore : (user?.globalScore?.toString() ?? '')
+    const position = localPosition !== null ? localPosition : (user?.mainPosition ?? '')
 
     const hasChanges = user && (
         parseFloat(score) !== user.globalScore ||
@@ -89,6 +85,8 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
             return { newScore, newPosition }
         },
         onSuccess: ({ newScore, newPosition }) => {
+            setLocalScore(null)
+            setLocalPosition(null)
             queryClient.invalidateQueries({ queryKey: ['adminUserDetails', userId] })
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] })
             logger.info('Perfil atualizado com sucesso via RPC', { userId, score: newScore, position: newPosition })
@@ -197,7 +195,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                                 type="number"
                                                 step="0.1"
                                                 value={score}
-                                                onChange={(e) => setScore(e.target.value)}
+                                                onChange={(e) => setLocalScore(e.target.value)}
                                                 className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all"
                                             />
                                         </div>
@@ -208,7 +206,7 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
                                             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-green" size={14} />
                                             <select
                                                 value={position || ''}
-                                                onChange={(e) => setPosition(e.target.value)}
+                                                onChange={(e) => setLocalPosition(e.target.value)}
                                                 className="w-full pl-9 pr-8 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green transition-all appearance-none cursor-pointer"
                                             >
                                                 {POSITIONS.map(p => (

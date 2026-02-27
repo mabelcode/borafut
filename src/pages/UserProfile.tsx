@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { Loader2, Medal, UserRoundMinus } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useUserProfileData } from '@/hooks/useUserProfileData'
@@ -13,22 +13,15 @@ export default function UserProfile({ onBack }: Props) {
 
     const [isSaving, setIsSaving] = useState(false)
     const [successMsg, setSuccessMsg] = useState(false)
-    const [name, setName] = useState(() => user?.displayName || '')
-    const [phone, setPhone] = useState(() => user?.phoneNumber || '')
-    const [position, setPosition] = useState<string | undefined>(() => user?.mainPosition ?? undefined)
-    const [pixKey, setPixKey] = useState<string | undefined>(() => user?.pixKey ?? undefined)
+    const [localName, setLocalName] = useState<string | null>(null)
+    const [localPhone, setLocalPhone] = useState<string | null>(null)
+    const [localPosition, setLocalPosition] = useState<string | undefined | null>(null)
+    const [localPixKey, setLocalPixKey] = useState<string | undefined | null>(null)
 
-    const isInitialized = useRef(false)
-
-    useEffect(() => {
-        if (user && !isInitialized.current) {
-            setName(user.displayName || '')
-            setPhone(user.phoneNumber || '')
-            setPosition(user.mainPosition ?? undefined)
-            setPixKey(user.pixKey ?? undefined)
-            isInitialized.current = true
-        }
-    }, [user])
+    const name = localName !== null ? localName : (user?.displayName || '')
+    const phone = localPhone !== null ? localPhone : (user?.phoneNumber || '')
+    const position = localPosition !== null ? localPosition : (user?.mainPosition ?? undefined)
+    const pixKey = localPixKey !== null ? localPixKey : (user?.pixKey ?? undefined)
 
     const hasChanges =
         name.trim() !== (user?.displayName || '') ||
@@ -56,6 +49,10 @@ export default function UserProfile({ onBack }: Props) {
         })
 
         if (ok) {
+            setLocalName(null)
+            setLocalPhone(null)
+            setLocalPosition(null)
+            setLocalPixKey(null)
             setSuccessMsg(true)
             setTimeout(() => setSuccessMsg(false), 3000)
         }
@@ -83,7 +80,7 @@ export default function UserProfile({ onBack }: Props) {
                 }
             }
 
-            setPhone(masked)
+            setLocalPhone(masked)
         }
     }
 
@@ -119,7 +116,7 @@ export default function UserProfile({ onBack }: Props) {
                             <input
                                 type="text"
                                 value={name}
-                                onChange={e => setName(e.target.value)}
+                                onChange={e => setLocalName(e.target.value)}
                                 required
                                 placeholder="Como você é chamado"
                                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-semibold text-primary-text focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition-all outline-none"
@@ -139,7 +136,7 @@ export default function UserProfile({ onBack }: Props) {
                             <label className="text-xs font-bold text-secondary-text uppercase tracking-wide px-1">Posição Principal</label>
                             <select
                                 value={position || ''}
-                                onChange={e => setPosition(e.target.value)}
+                                onChange={e => setLocalPosition(e.target.value)}
                                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-semibold text-primary-text focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition-all outline-none appearance-none"
                             >
                                 <option value="" disabled>Selecione a posição</option>
@@ -152,8 +149,8 @@ export default function UserProfile({ onBack }: Props) {
                             <label className="text-xs font-bold text-secondary-text uppercase tracking-wide px-1">Chave Pix (Para Admins)</label>
                             <input
                                 type="text"
-                                value={pixKey}
-                                onChange={e => setPixKey(e.target.value)}
+                                value={pixKey || ''}
+                                onChange={e => setLocalPixKey(e.target.value)}
                                 placeholder="CPF, Celular, E-mail ou Aleatória"
                                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-semibold text-primary-text focus:bg-white focus:border-brand-green focus:ring-4 focus:ring-brand-green/10 transition-all outline-none"
                             />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, CheckCircle2, Link2, Copy, RefreshCw, Clock, Edit2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -25,7 +25,7 @@ const EXPIRY_OPTIONS = [
 export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
     const queryClient = useQueryClient()
     const [editingName, setEditingName] = useState(false)
-    const [newName, setNewName] = useState('')
+    const [localNewName, setLocalNewName] = useState<string | null>(null)
     const [selectedExpiry, setSelectedExpiry] = useState<number | null>(null)
     const [copied, setCopied] = useState(false)
 
@@ -43,14 +43,7 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
         }
     })
 
-    const initializedRef = useRef(false)
-
-    useEffect(() => {
-        if (group?.name && !initializedRef.current) {
-            setNewName(group.name)
-            initializedRef.current = true
-        }
-    }, [group?.name])
+    const newName = localNewName !== null ? localNewName : (group?.name ?? '')
 
     const saveNameMutation = useMutation({
         mutationFn: async (name: string) => {
@@ -63,6 +56,7 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
             return name
         },
         onSuccess: (name) => {
+            setLocalNewName(null)
             queryClient.invalidateQueries({ queryKey: ['adminGroupSettings', groupId] })
             queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
             queryClient.invalidateQueries({ queryKey: ['adminGroups'] })
@@ -156,7 +150,7 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
                             type="text"
                             value={newName}
                             disabled={!editingName}
-                            onChange={(e) => setNewName(e.target.value)}
+                            onChange={(e) => setLocalNewName(e.target.value)}
                             className={`flex-1 px-4 py-3 text-sm font-medium rounded-xl transition-all ${editingName
                                 ? 'bg-white border-2 border-brand-green outline-none'
                                 : 'bg-gray-50 border border-gray-100 text-secondary-text'

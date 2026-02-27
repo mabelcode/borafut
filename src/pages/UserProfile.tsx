@@ -84,10 +84,19 @@ export default function UserProfile({ onBack }: Props) {
         }
     }
 
-    if (!user || loadingData) {
+    if (loadingData) {
         return (
             <div className="flex justify-center items-center h-screen bg-background">
                 <Loader2 size={32} className="animate-spin text-brand-green" />
+            </div>
+        )
+    }
+
+    if (!user) {
+        return (
+            <div className="flex flex-col justify-center items-center h-screen bg-background gap-4">
+                <p className="text-secondary-text font-medium">Usuário não encontrado.</p>
+                <button onClick={onBack} className="text-brand-green font-bold">Voltar</button>
             </div>
         )
     }

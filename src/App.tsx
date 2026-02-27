@@ -381,7 +381,7 @@ export default function App() {
         }
       })
     }
-  }, [session, isSessionLoaded, checkingProfile, profileCheck])
+  }, [session, isSessionLoaded, checkingProfile, profileCheck, profileError])
 
   if (appState === 'loading' && !session) {
     return (

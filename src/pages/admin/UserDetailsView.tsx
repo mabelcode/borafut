@@ -68,8 +68,11 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
     const score = localScore !== null ? localScore : (user?.globalScore?.toString() ?? '')
     const position = localPosition !== null ? localPosition : (user?.mainPosition ?? '')
 
+    const parsedScore = parseFloat(score)
+    const isValidScore = score !== '' && Number.isFinite(parsedScore)
+
     const hasChanges = user && (
-        parseFloat(score) !== user.globalScore ||
+        (isValidScore && parsedScore !== user.globalScore) ||
         (position || null) !== user.mainPosition
     )
 
@@ -96,7 +99,8 @@ export default function UserDetailsView({ userId, onBack, governanceLevel = 'VIE
 
     async function handleUpdateProfile() {
         if (!user || updateProfileMutation.isPending || !hasChanges) return
-        const newScore = parseFloat(score) || 0
+        const parsedScore = parseFloat(score)
+        const newScore = (score !== '' && Number.isFinite(parsedScore)) ? parsedScore : user.globalScore
         updateProfileMutation.mutate({ newScore, newPosition: position || null })
     }
 

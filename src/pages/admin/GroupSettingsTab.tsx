@@ -67,11 +67,12 @@ export default function GroupSettingsTab({ groupId }: GroupSettingsTabProps) {
     })
 
     async function handleSaveName() {
-        if (!newName.trim() || newName === group?.name) {
+        const trimmed = newName.trim()
+        if (!trimmed || trimmed === group?.name) {
             setEditingName(false)
             return
         }
-        saveNameMutation.mutate(newName.trim())
+        saveNameMutation.mutate(trimmed)
     }
 
     const regenerateInviteMutation = useMutation({

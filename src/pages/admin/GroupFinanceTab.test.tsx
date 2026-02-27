@@ -134,7 +134,7 @@ describe('GroupFinanceTab Component', () => {
     })
 
     it('applies status guard when confirming payment', async () => {
-        const updateChain = Promise.resolve({ error: null }) as any
+        const updateChain = Promise.resolve({ data: [{ id: 'reg-1' }], error: null }) as any
         updateChain.eq = vi.fn().mockReturnValue(updateChain)
         updateChain.select = vi.fn().mockReturnValue(updateChain)
         const mockUpdate = vi.fn().mockReturnValue(updateChain)

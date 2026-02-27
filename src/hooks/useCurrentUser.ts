@@ -56,16 +56,18 @@ export function useCurrentUser() {
                     name: string
                     inviteToken: string
                     inviteExpiresAt: string | null
-                }
+                } | null
             }[]
 
-            const memberships: GroupMembership[] = rawMemberships.map(m => ({
-                groupId: m.groups.id,
-                groupName: m.groups.name,
-                role: m.role,
-                inviteToken: m.groups.inviteToken,
-                inviteExpiresAt: m.groups.inviteExpiresAt,
-            }))
+            const memberships: GroupMembership[] = rawMemberships
+                .filter(m => m.groups !== null)
+                .map(m => ({
+                    groupId: m.groups!.id,
+                    groupName: m.groups!.name,
+                    role: m.role,
+                    inviteToken: m.groups!.inviteToken,
+                    inviteExpiresAt: m.groups!.inviteExpiresAt,
+                }))
 
             return {
                 user: (profileRes.data ?? null) as UserProfile | null,

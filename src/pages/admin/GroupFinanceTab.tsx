@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, CheckCircle2, QrCode, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -53,12 +53,10 @@ export default function GroupFinanceTab({ groupId }: GroupFinanceTabProps) {
 
     // Sync one-time when user id transitions if needed
     const [lastUserId, setLastUserId] = useState(user?.id)
-    useEffect(() => {
-        if (user?.id !== lastUserId) {
-            setLastUserId(user?.id)
-            setPixKey(user?.pixKey ?? '')
-        }
-    }, [user?.id, user?.pixKey, lastUserId])
+    if (user?.id !== lastUserId) {
+        setLastUserId(user?.id)
+        setPixKey(user?.pixKey ?? '')
+    }
     const { data: pendingRegs, isLoading: loadingRegs, isError: isRegsError, error: regsQueryError } = useQuery({
         queryKey: ['adminGroupFinance', groupId],
         queryFn: async () => {

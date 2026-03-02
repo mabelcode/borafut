@@ -17,6 +17,7 @@ export interface ProfileMatch {
     scheduledAt: string
     groupId: string
     groupName: string
+    mvps?: { displayName: string | null; avatarUrl: string | null }[]
 }
 
 interface GroupMemberRow {
@@ -34,8 +35,16 @@ interface MatchRegistrationRow {
         groupId: string
         status: string
         groups: { name: string } | null
+        match_mvps: {
+            users: {
+                displayName: string | null
+                avatarUrl: string | null
+            } | null
+        }[]
     } | null
 }
+
+
 
 export function useUserProfileData(userId?: string) {
     const queryClient = useQueryClient()
@@ -59,10 +68,9 @@ export function useUserProfileData(userId?: string) {
             if (groupErr) throw groupErr
 
             // Type assertions because the join returns arrays/objects
-            const formattedGroups: ProfileGroup[] = (groupData || [])
-                .filter((gm: unknown) => (gm as GroupMemberRow).groups !== null)
-                .map((gm: unknown) => {
-                    const row = gm as GroupMemberRow
+            const formattedGroups: ProfileGroup[] = (groupData as unknown as GroupMemberRow[] || [])
+                .filter((row) => row.groups !== null)
+                .map((row) => {
                     return {
                         id: row.groups!.id,
                         name: row.groups!.name,
@@ -77,7 +85,7 @@ export function useUserProfileData(userId?: string) {
                 .from('match_registrations')
                 .select(`
                     id,
-                    matches!inner(id, title, scheduledAt, groupId, status, groups(name))
+                    matches!inner(id, title, scheduledAt, groupId, status, groups(name), match_mvps(users(displayName, avatarUrl)))
                 `)
                 .eq('userId', userId)
                 .eq('status', 'CONFIRMED')
@@ -86,15 +94,19 @@ export function useUserProfileData(userId?: string) {
 
             if (matchErr) throw matchErr
 
-            const formattedHistory: ProfileMatch[] = (matchData || [])
-                .map((reg: unknown) => {
-                    const row = reg as MatchRegistrationRow
+            const formattedHistory: ProfileMatch[] = (matchData as unknown as MatchRegistrationRow[] || [])
+                .map((row) => {
+                    const matchMvps = row.matches?.match_mvps || []
                     return {
                         id: row.matches?.id ?? '',
                         title: row.matches?.title ?? null,
                         scheduledAt: row.matches?.scheduledAt ?? '',
                         groupId: row.matches?.groupId ?? '',
-                        groupName: row.matches?.groups?.name ?? 'Unknown Group'
+                        groupName: row.matches?.groups?.name ?? 'Unknown Group',
+                        mvps: matchMvps.map((mvp) => ({
+                            displayName: mvp.users?.displayName ?? 'Jogador',
+                            avatarUrl: mvp.users?.avatarUrl ?? null
+                        }))
                     }
                 })
 

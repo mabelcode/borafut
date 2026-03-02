@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
-    RefreshCw, X
+    RefreshCw, X, Star, Trophy
 } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { QrCodePix } from 'qrcode-pix'
@@ -13,6 +13,12 @@ import type { Session } from '@supabase/supabase-js'
 import { useDraftState } from '@/hooks/useDraftState'
 import DraftBoard from '@/components/DraftBoard'
 import { type DraftPlayer, getTeamColorConfig } from '@/lib/draft'
+import EvaluationFlow from '@/components/EvaluationFlow'
+import AddPlayerModal from '@/components/AddPlayerModal'
+import PlayerAvatar from '@/components/PlayerAvatar'
+import MvpCard from '@/components/MvpCard'
+import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
+import { useMatchMvp } from '@/hooks/useMatchMvp'
 
 const logger = createLogger('MatchDetail')
 
@@ -100,7 +106,6 @@ function PlayerRow({
     onConfirm?: (regId: string) => void
 }) {
     const name = reg.users?.displayName ?? 'Jogador'
-    const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
     const position = reg.users?.mainPosition ? POSITION_LABEL[reg.users.mainPosition] : '—'
     const [confirming, setConfirming] = useState(false)
 
@@ -119,9 +124,7 @@ function PlayerRow({
 
     return (
         <div className={`flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors ${isMe ? 'bg-brand-green/5 border border-brand-green/20' : 'hover:bg-gray-50'}`}>
-            <div className="size-9 rounded-full bg-brand-green/10 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-brand-green">{initials}</span>
-            </div>
+            <PlayerAvatar src={reg.users?.avatarUrl} name={name} position={reg.users?.mainPosition} size="sm" />
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-primary-text truncate">
                     {name} {isMe && <span className="text-[10px] text-secondary-text font-normal">(você)</span>}
@@ -262,6 +265,31 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
     const [isDrafting, setIsDrafting] = useState(false)
     const [isConfigModalOpen, setIsConfigModalOpen] = useState(false)
     const [savingDraft, setSavingDraft] = useState(false)
+
+    // Evaluation State
+    const [isEvaluationOpen, setIsEvaluationOpen] = useState(false)
+    const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
+    const [isMvpCardOpen, setIsMvpCardOpen] = useState(false)
+    const [noEvaluationsMsg, setNoEvaluationsMsg] = useState(false)
+    const { hasEvaluated: hasAlreadyEvaluated, fetchMyEvaluations } = useMatchEvaluations(matchId, session.user.id)
+    const { mvps, loading: mvpLoading, computeMvps, isComputing, evaluatorCount } = useMatchMvp(matchId, data?.status)
+
+    // Fetch evaluations when match is closed/finished
+    useEffect(() => {
+        if (data && (data.status === 'CLOSED' || data.status === 'FINISHED') && data.myRegistration?.status === 'CONFIRMED') {
+            fetchMyEvaluations()
+
+            // Auto-open evaluation modal if ?evaluate=true is in URL
+            const urlParams = new URLSearchParams(window.location.search)
+            if (urlParams.get('evaluate') === 'true') {
+                setIsEvaluationOpen(true)
+                // Clean up only the evaluate param, preserving others and hash
+                urlParams.delete('evaluate')
+                const newSearch = urlParams.toString()
+                window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash)
+            }
+        }
+    }, [data?.status, data?.myRegistration?.status, fetchMyEvaluations])
 
     // Prepare players for the draft hook
     const confirmedPlayers: DraftPlayer[] = useMemo(() => {
@@ -533,6 +561,17 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                         </div>
                     )}
 
+                    {/* Admin: Add Player to OPEN match */}
+                    {isAdmin && data.status === 'OPEN' && (
+                        <button
+                            onClick={() => setIsAddPlayerOpen(true)}
+                            className="w-full py-3 rounded-2xl border-2 border-dashed border-brand-green/30 text-brand-green font-semibold text-sm flex items-center justify-center gap-2 hover:bg-brand-green/5 hover:border-brand-green/50 active:scale-[0.98] transition-all"
+                        >
+                            <Users size={16} />
+                            + Adicionar Jogador
+                        </button>
+                    )}
+
                     {/* Admin: pending confirmations */}
                     {isAdmin && pendingReserved.length > 0 && (
                         <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex flex-col gap-2">
@@ -564,6 +603,120 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                             price={data.price}
                             onAction={refetch}
                         />
+                    )}
+
+                    {/* Evaluation CTA */}
+                    {(data.status === 'CLOSED' || data.status === 'FINISHED') && data.myRegistration?.status === 'CONFIRMED' && !hasAlreadyEvaluated && (
+                        <button
+                            onClick={() => setIsEvaluationOpen(true)}
+                            className="w-full py-4 rounded-2xl font-bold text-sm shadow-xl flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition-all mb-4 bg-brand-green text-white shadow-brand-green/30"
+                        >
+                            <Star size={18} className="fill-current" />
+                            AVALIAR JOGADORES
+                        </button>
+                    )}
+
+                    {/* Evaluation done indicator */}
+                    {(data.status === 'CLOSED' || data.status === 'FINISHED') && data.myRegistration?.status === 'CONFIRMED' && hasAlreadyEvaluated && (
+                        <div className="w-full py-3.5 rounded-2xl border border-brand-green/30 bg-brand-green/5 text-brand-green font-semibold text-sm flex items-center justify-center gap-2 mb-4">
+                            <CheckCircle2 size={16} />
+                            Avaliação Enviada
+                        </div>
+                    )}
+
+                    {/* Craque(s) da Partida */}
+                    {isAdmin && (data.status === 'CLOSED' || data.status === 'FINISHED') && (
+                        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 flex flex-col gap-4 shadow-lg border border-gray-700/50">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Trophy size={18} className="text-amber-400" />
+                                    <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+                                        {mvps.length > 1 ? 'Craques da Partida' : 'Craque da Partida'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {mvpLoading ? (
+                                <div className="flex justify-center py-4">
+                                    <Loader2 size={18} className="animate-spin text-gray-400" />
+                                </div>
+                            ) : mvps.length === 0 ? (
+                                (() => {
+                                    const confirmedCount = data.registrations.filter(r => r.status === 'CONFIRMED').length
+                                    const hasAnyEvaluation = evaluatorCount > 0
+
+                                    return (
+                                        <div className="flex flex-col items-center gap-3 py-2">
+                                            <div className="flex items-center gap-2 w-full mt-2">
+                                                <div className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                                                        style={{ width: `${confirmedCount > 0 ? Math.min((evaluatorCount / confirmedCount) * 100, 100) : 0}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap">
+                                                    {evaluatorCount} / {confirmedCount} avaliaram
+                                                </span>
+                                            </div>
+
+                                            <p className="text-xs text-gray-400 text-center">
+                                                {!hasAnyEvaluation
+                                                    ? 'Nenhuma avaliação recebida ainda. Aguarde as avaliações para calcular o craque.'
+                                                    : 'Você já pode calcular o craque, mas lembre-se que nem todos podem ter avaliado ainda.'}
+                                            </p>
+
+                                            {noEvaluationsMsg && (
+                                                <p className="text-xs text-red-400 font-semibold text-center mt-1">
+                                                    Não foi possível calcular. Tente novamente.
+                                                </p>
+                                            )}
+
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        setNoEvaluationsMsg(false)
+                                                        const count = await computeMvps()
+                                                        if (count === 0) setNoEvaluationsMsg(true)
+                                                    } catch (err) {
+                                                        logger.error('Error computing MVPs', err)
+                                                        setNoEvaluationsMsg(true)
+                                                    }
+                                                }}
+                                                disabled={isComputing || !hasAnyEvaluation}
+                                                className="px-5 py-2.5 bg-amber-500 text-gray-900 font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-amber-400 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-amber-500/20 w-full justify-center mt-2"
+                                            >
+                                                {isComputing ? <Loader2 size={14} className="animate-spin" /> : <Trophy size={14} />}
+                                                CALCULAR CRAQUE(S)
+                                            </button>
+                                        </div>
+                                    )
+                                })()
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex flex-wrap gap-3">
+                                        {mvps.map(mvp => (
+                                            <div key={mvp.userId} className="flex items-center gap-2.5 bg-white/5 rounded-xl px-3 py-2 border border-white/10">
+                                                <PlayerAvatar src={mvp.avatarUrl} name={mvp.displayName || 'Jogador'} size="sm" />
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-white leading-tight">{mvp.displayName}</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <Star size={10} className="text-amber-400 fill-amber-400" />
+                                                        <span className="text-xs font-bold text-amber-400">{Number(mvp.avgScore).toFixed(1)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => setIsMvpCardOpen(true)}
+                                        className="w-full py-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-amber-500/20 active:scale-[0.97] transition-all"
+                                    >
+                                        <Trophy size={14} />
+                                        COMPARTILHAR CARD
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {/* All players or Teams based on status */}
@@ -621,6 +774,35 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                         </div>
                     ))}
                 </>
+            )}
+
+            {isEvaluationOpen && data && (
+                <EvaluationFlow
+                    matchId={matchId}
+                    currentUserId={session.user.id}
+                    confirmedRegistrations={data.registrations.filter(r => r.status === 'CONFIRMED')}
+                    onClose={() => setIsEvaluationOpen(false)}
+                    onSuccess={() => fetchMyEvaluations()}
+                />
+            )}
+
+            {isAddPlayerOpen && data && (
+                <AddPlayerModal
+                    matchId={matchId}
+                    groupId={data.groupId}
+                    existingRegistrations={data.registrations}
+                    onClose={() => setIsAddPlayerOpen(false)}
+                    onPlayerAdded={refetch}
+                />
+            )}
+
+            {isMvpCardOpen && data && mvps.length > 0 && (
+                <MvpCard
+                    mvps={mvps}
+                    matchTitle={data.title}
+                    matchDate={data.scheduledAt}
+                    onClose={() => setIsMvpCardOpen(false)}
+                />
             )}
         </div>
     )

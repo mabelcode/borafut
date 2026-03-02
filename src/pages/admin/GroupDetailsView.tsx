@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import SortSelector from '@/components/SortSelector'
+import PlayerAvatar from '@/components/PlayerAvatar'
 import type { SortOption } from '@/components/SortSelector'
 
 interface GroupDetailsViewProps {
@@ -26,11 +27,18 @@ interface GroupMember {
     user?: {
         id: string
         displayName: string
-        phoneNumber: string
         mainPosition: string
         globalScore: number
         isSuperAdmin: boolean
-    }
+        avatarUrl: string | null
+    } | {
+        id: string
+        displayName: string
+        mainPosition: string
+        globalScore: number
+        isSuperAdmin: boolean
+        avatarUrl: string | null
+    }[]
 }
 
 interface SearchUser {
@@ -39,6 +47,7 @@ interface SearchUser {
     phoneNumber: string
     mainPosition: string
     globalScore: number
+    avatarUrl: string | null
 }
 
 export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewProps) {
@@ -64,7 +73,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                 supabase.from('groups').select('*').eq('id', groupId).single(),
                 supabase.from('group_members').select(`
                     id, role, joinedAt,
-                    user:users(id, displayName, mainPosition, globalScore, isSuperAdmin)
+                    user:users(id, displayName, mainPosition, globalScore, isSuperAdmin, avatarUrl)
                 `).eq('groupId', groupId)
             ])
 
@@ -87,7 +96,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('users')
-                .select('id, displayName, phoneNumber, mainPosition, globalScore')
+                .select('id, displayName, phoneNumber, mainPosition, globalScore, avatarUrl')
                 .limit(50)
 
             if (error) throw error
@@ -188,9 +197,12 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
 
     const sortedMembers = useMemo(() => {
         return [...members].sort((a, b) => {
+            const userA = Array.isArray(a.user) ? a.user[0] : a.user
+            const userB = Array.isArray(b.user) ? b.user[0] : b.user
+
             // 1. Super Admin Priority (Sempre topo)
-            if (a.user?.isSuperAdmin && !b.user?.isSuperAdmin) return -1
-            if (!a.user?.isSuperAdmin && b.user?.isSuperAdmin) return 1
+            if (userA?.isSuperAdmin && !userB?.isSuperAdmin) return -1
+            if (!userA?.isSuperAdmin && userB?.isSuperAdmin) return 1
 
             // 2. Role Priority (Admin > Player)
             if (sortBy === 'ROLE') {
@@ -201,15 +213,15 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
             // 3. Secondary Sort
             switch (sortBy) {
                 case 'NAME':
-                    return (a.user?.displayName || '').localeCompare(b.user?.displayName || '')
+                    return (userA?.displayName || '').localeCompare(userB?.displayName || '')
                 case 'SCORE':
-                    return (b.user?.globalScore || 0) - (a.user?.globalScore || 0)
+                    return (userB?.globalScore || 0) - (userA?.globalScore || 0)
                 case 'DATE':
                     return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime()
                 case 'ROLE':
                 default:
                     // Se for ROLE e for empate no role, ordena por nome
-                    return (a.user?.displayName || '').localeCompare(b.user?.displayName || '')
+                    return (userA?.displayName || '').localeCompare(userB?.displayName || '')
             }
         })
     }, [members, sortBy])
@@ -233,7 +245,10 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
     }
 
     const availableUsers = globalUsers.filter(gu =>
-        !members.some(m => m.user?.id === gu.id) &&
+        !members.some(m => {
+            const u = Array.isArray(m.user) ? m.user[0] : m.user
+            return u?.id === gu.id
+        }) &&
         (gu.displayName?.toLowerCase().includes(searchUser.toLowerCase()) ||
             gu.phoneNumber?.includes(searchUser))
     )
@@ -278,9 +293,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                             {availableUsers.map(u => (
                                 <div key={u.id} className="flex items-center justify-between p-3.5 hover:bg-gray-50 rounded-2xl transition-all group border border-transparent hover:border-gray-100">
                                     <div className="flex items-center gap-3">
-                                        <div className="size-10 rounded-full bg-brand-green/10 flex items-center justify-center text-sm font-bold text-brand-green border border-brand-green/20 shrink-0">
-                                            {u.displayName?.[0] || 'J'}
-                                        </div>
+                                        <PlayerAvatar src={u.avatarUrl} name={u.displayName || 'J'} position={u.mainPosition} />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-sm font-bold text-primary-text leading-tight truncate">{u.displayName}</span>
                                             <span className="text-[10px] text-secondary-text font-medium">{u.phoneNumber || 'Sem telefone'}</span>
@@ -380,76 +393,74 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                     </div>
 
                     <div className="flex flex-col gap-2.5">
-                        {sortedMembers.map((member) => (
-                            <div key={member.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className={`size-10 rounded-xl flex items-center justify-center ${member.role === 'ADMIN' || member.user?.isSuperAdmin
-                                        ? 'bg-brand-green/10 text-brand-green border border-brand-green/20'
-                                        : 'bg-gray-50 text-secondary-text border border-gray-100'
-                                        }`}>
-                                        {member.role === 'ADMIN' || member.user?.isSuperAdmin ? <Shield size={20} /> : <User size={20} />}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="font-bold text-sm text-primary-text leading-tight">
-                                                {member.user?.displayName || 'Usuário sem nome'}
-                                            </span>
-                                            {member.user?.isSuperAdmin ? (
-                                                <span className="text-[8px] bg-indigo-600 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
-                                                    Super Admin
+                        {sortedMembers.map((member) => {
+                            const memberUser = Array.isArray(member.user) ? member.user[0] : member.user
+                            return (
+                                <div key={member.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <PlayerAvatar src={memberUser?.avatarUrl} name={memberUser?.displayName || 'J'} position={memberUser?.mainPosition} />
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="font-bold text-sm text-primary-text leading-tight">
+                                                    {memberUser?.displayName || 'Usuário sem nome'}
                                                 </span>
-                                            ) : member.role === 'ADMIN' ? (
-                                                <span className="text-[8px] bg-brand-green text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
-                                                    Admin
+                                                {memberUser?.isSuperAdmin ? (
+                                                    <span className="text-[8px] bg-indigo-600 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
+                                                        Super Admin
+                                                    </span>
+                                                ) : member.role === 'ADMIN' ? (
+                                                    <span className="text-[8px] bg-brand-green text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
+                                                        Admin
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[10px] text-secondary-text font-medium flex items-center gap-1">
+                                                    <Star size={10} className="text-amber-400 fill-amber-400" />
+                                                    {memberUser?.globalScore?.toFixed(1) || '0.0'}
                                                 </span>
-                                            ) : null}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-[10px] text-secondary-text font-medium flex items-center gap-1">
-                                                <Star size={10} className="text-amber-400 fill-amber-400" />
-                                                {member.user?.globalScore.toFixed(1)}
-                                            </span>
-                                            <span className="size-1 rounded-full bg-gray-200" />
-                                            <span className="text-[10px] text-secondary-text font-medium uppercase tracking-tight">
-                                                {member.user?.mainPosition || '---'}
-                                            </span>
+                                                <span className="size-1 rounded-full bg-gray-200" />
+                                                <span className="text-[10px] text-secondary-text font-medium uppercase tracking-tight">
+                                                    {memberUser?.mainPosition || '---'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="flex flex-col items-end gap-2">
-                                    <span className="text-[9px] text-secondary-text font-medium flex items-center gap-1 opacity-60">
-                                        <Calendar size={10} />
-                                        Entrou {new Date(member.joinedAt).toLocaleDateString()}
-                                    </span>
+                                    <div className="flex flex-col items-end gap-2">
+                                        <span className="text-[9px] text-secondary-text font-medium flex items-center gap-1 opacity-60">
+                                            <Calendar size={10} />
+                                            Entrou {new Date(member.joinedAt).toLocaleDateString()}
+                                        </span>
 
-                                    {!member.user?.isSuperAdmin && (
-                                        <button
-                                            onClick={() => handleToggleRole(member.id, member.role, member.user?.id || '')}
-                                            disabled={toggleRoleMutation.isPending && toggleRoleMutation.variables?.memberId === member.id}
-                                            className={`text-[9px] font-bold px-2 py-1.5 rounded-lg border transition-all active:scale-95 flex items-center gap-1.5 ${member.role === 'ADMIN'
-                                                ? 'bg-gray-50 text-secondary-text border-gray-100 hover:bg-gray-100'
-                                                : 'bg-brand-green/5 text-brand-green border-brand-green/10 hover:bg-brand-green/10'
-                                                }`}
-                                        >
-                                            {(toggleRoleMutation.isPending && toggleRoleMutation.variables?.memberId === member.id) ? (
-                                                <Loader2 size={10} className="animate-spin" />
-                                            ) : member.role === 'ADMIN' ? (
-                                                <>
-                                                    <User size={10} />
-                                                    TORNAR JOGADOR
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Shield size={10} />
-                                                    TORNAR ADMIN
-                                                </>
-                                            )}
-                                        </button>
-                                    )}
+                                        {!memberUser?.isSuperAdmin && (
+                                            <button
+                                                onClick={() => handleToggleRole(member.id, member.role, memberUser?.id || '')}
+                                                disabled={toggleRoleMutation.isPending && toggleRoleMutation.variables?.memberId === member.id}
+                                                className={`text-[9px] font-bold px-2 py-1.5 rounded-lg border transition-all active:scale-95 flex items-center gap-1.5 ${member.role === 'ADMIN'
+                                                    ? 'bg-gray-50 text-secondary-text border-gray-100 hover:bg-gray-100'
+                                                    : 'bg-brand-green/5 text-brand-green border-brand-green/10 hover:bg-brand-green/10'
+                                                    }`}
+                                            >
+                                                {(toggleRoleMutation.isPending && toggleRoleMutation.variables?.memberId === member.id) ? (
+                                                    <Loader2 size={10} className="animate-spin" />
+                                                ) : member.role === 'ADMIN' ? (
+                                                    <>
+                                                        <User size={10} />
+                                                        TORNAR JOGADOR
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Shield size={10} />
+                                                        TORNAR ADMIN
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            )
+                        })}
 
                         {members.length === 0 && (
                             <div className="text-center py-10 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">

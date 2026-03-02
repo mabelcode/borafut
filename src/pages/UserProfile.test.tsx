@@ -48,6 +48,8 @@ const mockHistory = [
 describe('UserProfile', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        // Reset URL params between tests
+        window.history.replaceState({}, '', '/')
 
             ; (useCurrentUser as any).mockReturnValue({
                 user: mockUser,
@@ -79,10 +81,12 @@ describe('UserProfile', () => {
         expect(screen.getByText('4.8')).toBeInTheDocument() // Score
         expect(screen.getByText('1')).toBeInTheDocument()   // Matches played
 
-        // Assert groups & history
-        expect(screen.getByText('Meus Grupos (1)')).toBeInTheDocument()
-        expect(screen.getAllByText('Bola de Ouro')[0]).toBeInTheDocument()
-        expect(screen.getByText('Histórico Recente')).toBeInTheDocument()
+        // Assert groups
+        fireEvent.click(screen.getByText('Grupos'))
+        expect(screen.getByText('Bola de Ouro')).toBeInTheDocument()
+
+        // Assert history
+        fireEvent.click(screen.getByText('Histórico'))
         expect(screen.getByText('Racha de Terça')).toBeInTheDocument()
     })
 
@@ -136,6 +140,9 @@ describe('UserProfile', () => {
             </BrowserRouter>
         )
 
+        // Switch to Groups tab
+        fireEvent.click(screen.getByText('Grupos'))
+
         const leaveButton = screen.getByTitle('Sair do grupo')
         fireEvent.click(leaveButton)
 
@@ -143,5 +150,36 @@ describe('UserProfile', () => {
         expect(leaveMock).toHaveBeenCalledWith('g1')
 
         confirmSpy.mockRestore()
+    })
+
+    it('initializes on the history tab if ?tab=history is present', () => {
+        window.history.replaceState({}, '', '/?tab=history')
+
+        render(
+            <BrowserRouter>
+                <UserProfile onBack={vi.fn()} />
+            </BrowserRouter>
+        )
+
+        // History tab should be active, so we should see the match title
+        expect(screen.getByText('Racha de Terça')).toBeInTheDocument()
+    })
+
+    it('navigates to match detail when clicking a history card', () => {
+        const onViewMatchMock = vi.fn()
+        render(
+            <BrowserRouter>
+                <UserProfile onBack={vi.fn()} onViewMatch={onViewMatchMock} />
+            </BrowserRouter>
+        )
+
+        // Go to history tab
+        fireEvent.click(screen.getByText('Histórico'))
+
+        // Click the match card
+        const matchCard = screen.getByText('Racha de Terça').closest('button')
+        fireEvent.click(matchCard!)
+
+        expect(onViewMatchMock).toHaveBeenCalledWith('m1')
     })
 })

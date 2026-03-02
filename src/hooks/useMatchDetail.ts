@@ -10,11 +10,13 @@ export interface Registration {
         displayName: string | null
         mainPosition: string | null
         globalScore: number
+        avatarUrl: string | null
     } | null
 }
 
 export interface MatchDetailData {
     id: string
+    groupId: string
     title: string | null
     scheduledAt: string
     maxPlayers: number
@@ -39,7 +41,7 @@ export function useMatchDetail(matchId: string) {
                 supabase.from('matches').select('*').eq('id', matchId).single(),
                 supabase
                     .from('match_registrations')
-                    .select('id, userId, status, teamNumber, users(displayName, mainPosition, globalScore)')
+                    .select('id, userId, status, teamNumber, users(displayName, mainPosition, globalScore, avatarUrl)')
                     .eq('matchId', matchId)
                     .in('status', ['RESERVED', 'CONFIRMED', 'WAITLIST'])
                     .order('createdAt', { ascending: true }),

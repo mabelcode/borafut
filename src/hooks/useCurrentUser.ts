@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
@@ -12,6 +13,7 @@ export interface UserProfile {
     globalScore: number
     isSuperAdmin: boolean
     pixKey: string | null
+    avatarUrl: string | null
     createdAt: string
 }
 
@@ -74,12 +76,37 @@ export function useCurrentUser() {
                 groups: memberships,
                 authUser,
             }
-        }
+        },
     })
 
     const user = data?.user ?? null
     const groups = data?.groups ?? []
     const authUser = data?.authUser ?? null
+
+    // Sync avatarUrl from Google OAuth if it changed (runs once per change)
+    const lastSyncedAvatarRef = useRef<string | null>(null)
+    const authAvatarUrl = (authUser?.user_metadata as { avatar_url?: string } | null)?.avatar_url ?? null
+    const needsSync = !!user && !!authAvatarUrl && user.avatarUrl !== authAvatarUrl
+
+    useEffect(() => {
+        if (!needsSync || lastSyncedAvatarRef.current === authAvatarUrl) return
+        lastSyncedAvatarRef.current = authAvatarUrl
+
+        const updateAvatar = async () => {
+            try {
+                const { error } = await supabase.from('users').update({ avatarUrl: authAvatarUrl }).eq('id', user!.id)
+                if (error) throw error
+                queryClient.setQueryData<CurrentUserQueryData>(['currentUser'], (old) => {
+                    if (!old?.user) return old
+                    return { ...old, user: { ...old.user, avatarUrl: authAvatarUrl } }
+                })
+            } catch (err) {
+                logger.error('Error syncing avatar on auth', err)
+                lastSyncedAvatarRef.current = null // allow retry on next attempt
+            }
+        }
+        updateAvatar()
+    }, [needsSync, authAvatarUrl, user, queryClient])
 
     const updateProfileMutation = useMutation({
         mutationFn: async (updates: Partial<Omit<UserProfile, 'id' | 'createdAt' | 'isSuperAdmin'>>) => {

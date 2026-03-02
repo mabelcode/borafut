@@ -61,7 +61,7 @@ BEGIN
     WHERE id = p_match_id;
 
     -- 4. Audit Log
-    INSERT INTO audit_log ("actorId", action, "targetType", "targetId", metadata)
+    INSERT INTO public.audit_log ("actorId", action, "targetType", "targetId", metadata)
     VALUES (
         auth.uid(),
         'SAVE_MATCH_DRAFT',
@@ -71,7 +71,7 @@ BEGIN
     );
 
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Grant EXECUTE permission to authenticated users (RLS is checked inside the function)
 GRANT EXECUTE ON FUNCTION admin_save_draft(UUID, JSONB) TO authenticated;

@@ -102,7 +102,8 @@ describe('Onboarding Component', () => {
                 id: 'user-1',
                 phoneNumber: '+5511988887777',
                 displayName: 'Marcos',
-                mainPosition: 'ATTACK'
+                mainPosition: 'ATTACK',
+                avatarUrl: null
             });
             expect(mockOnComplete).toHaveBeenCalled();
         });
@@ -138,6 +139,32 @@ describe('Onboarding Component', () => {
         await waitFor(() => {
             expect(supabase.auth.signOut).toHaveBeenCalled();
             expect(mockOnSignOut).toHaveBeenCalled();
+        });
+    });
+    it('includes avatarUrl from session if present', async () => {
+        const user = userEvent.setup();
+        const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+        vi.mocked(supabase.from).mockReturnValue({ upsert: mockUpsert } as any);
+
+        const sessionWithAvatar = {
+            user: {
+                id: 'user-1',
+                user_metadata: { avatar_url: 'https://avatar.url/image.png' }
+            }
+        } as any;
+
+        render(<Onboarding session={sessionWithAvatar} onComplete={mockOnComplete} onSignOut={mockOnSignOut} />);
+
+        await user.type(screen.getByPlaceholderText(/Ex: Marcos/i), 'Marcos');
+        await user.click(screen.getByText('Ataque'));
+        await user.type(screen.getByPlaceholderText(/\(11\) 99999-9999/i), '11988887777');
+
+        await user.click(screen.getByRole('button', { name: /Entrar no app/i }));
+
+        await waitFor(() => {
+            expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({
+                avatarUrl: 'https://avatar.url/image.png'
+            }));
         });
     });
 });

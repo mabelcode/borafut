@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createLogger } from '@/lib/logger'
 import { X, Copy, Check, Share2, Loader2 } from 'lucide-react'
 import { formatMatchStatus, computeDeadline, type MatchStatusInput } from '@/lib/matchStatusFormatter'
@@ -14,6 +14,33 @@ interface Props {
 export default function MatchStatusShare({ matchData, matchTitle, onClose }: Props) {
     const [copied, setCopied] = useState(false)
     const [sharing, setSharing] = useState(false)
+    const dialogRef = useRef<HTMLDivElement>(null)
+    const triggerRef = useRef<Element | null>(null)
+
+    const stableOnClose = useCallback(() => {
+        // Return focus to the element that opened the dialog
+        if (triggerRef.current instanceof HTMLElement) {
+            triggerRef.current.focus()
+        }
+        onClose()
+    }, [onClose])
+
+    useEffect(() => {
+        // Remember which element had focus before opening
+        triggerRef.current = document.activeElement
+
+        // Auto-focus the dialog container
+        dialogRef.current?.focus()
+
+        // Escape key handler
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape') {
+                stableOnClose()
+            }
+        }
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [stableOnClose])
 
     const statusText = formatMatchStatus(matchData)
     const deadline = computeDeadline(matchData.scheduledAt, matchData.confirmationDeadlineHours, matchData.createdAt)
@@ -59,18 +86,26 @@ export default function MatchStatusShare({ matchData, matchTitle, onClose }: Pro
 
     return (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-surface w-full max-w-md rounded-t-[32px] sm:rounded-3xl flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90vh]">
+            <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="share-modal-title"
+                aria-describedby="share-modal-desc"
+                tabIndex={-1}
+                className="bg-surface w-full max-w-md rounded-t-[32px] sm:rounded-3xl flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90vh] outline-none"
+            >
 
                 {/* Header */}
                 <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
                     <div>
-                        <h3 className="text-lg font-bold text-primary-text">Compartilhar Status</h3>
-                        <p className="text-[11px] text-secondary-text mt-0.5">
+                        <h3 id="share-modal-title" className="text-lg font-bold text-primary-text">Compartilhar Status</h3>
+                        <p id="share-modal-desc" className="text-[11px] text-secondary-text mt-0.5">
                             Envie para o grupo da pelada
                         </p>
                     </div>
                     <button
-                        onClick={onClose}
+                        onClick={stableOnClose}
                         className="p-2 bg-gray-50 rounded-full text-secondary-text hover:bg-gray-100 transition-colors"
                         aria-label="Fechar"
                     >

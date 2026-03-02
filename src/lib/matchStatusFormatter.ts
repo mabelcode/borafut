@@ -145,14 +145,14 @@ export function formatMatchStatus(input: MatchStatusInput, now: Date = new Date(
     // Confirmed players
     if (confirmed.length > 0) {
         lines.push(`✅ *Confirmados (${confirmed.length}):*`)
-        confirmed.forEach(p => lines.push(`  • ${p.displayName}`))
+        for (const p of confirmed) { lines.push(`  • ${p.displayName}`) }
         lines.push('')
     }
 
     // Pending payment
     if (reserved.length > 0) {
         lines.push(`⏳ *Aguardando Pagamento (${reserved.length}):*`)
-        reserved.forEach(p => lines.push(`  • ${p.displayName}`))
+        for (const p of reserved) { lines.push(`  • ${p.displayName}`) }
         lines.push('')
     }
 

@@ -186,11 +186,14 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
 
                 {/* Prazo de confirmação */}
                 <FieldCard icon={<Clock size={15} />} label="Prazo de confirmação" hint="Tempo que jogadores têm para pagar após reservar">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" role="radiogroup" aria-label="Prazo de confirmação">
                         {[24, 48, 72].map((h) => (
                             <button
                                 key={h}
                                 type="button"
+                                role="radio"
+                                aria-checked={confirmationHours === String(h)}
+                                tabIndex={confirmationHours === String(h) ? 0 : -1}
                                 onClick={() => setConfirmationHours(String(h))}
                                 className={[
                                     'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 border',

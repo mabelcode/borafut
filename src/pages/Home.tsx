@@ -2,6 +2,7 @@ import { Calendar, Users, CircleDollarSign, Plus, ChevronRight, Loader2, Clock, 
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useMatches, type Match } from '@/hooks/useMatches'
 import { useMyRegistrations, type MyRegistrationsMap } from '@/hooks/useMyRegistrations'
+import { useMyEvaluatedMatches } from '@/hooks/useMyEvaluatedMatches'
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -27,11 +28,13 @@ const STATUS_LABEL: Record<Match['status'], { label: string; className: string }
 /* ── Match Card ──────────────────────────────────────────────────── */
 
 function MatchCard({
-    match, myStatus, onSelect,
+    match, myStatus, hasEvaluated, onSelect, onEvaluate
 }: {
     match: Match
     myStatus: MyRegistrationsMap[string] | undefined
+    hasEvaluated: boolean
     onSelect: () => void
+    onEvaluate?: () => void
 }) {
     const badge = STATUS_LABEL[match.status]
 
@@ -107,6 +110,24 @@ function MatchCard({
                     </button>
                 )
             )}
+
+            {/* Evaluation CTA for Closed/Finished Matches */}
+            {(match.status === 'CLOSED' || match.status === 'FINISHED') && myStatus === 'CONFIRMED' && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (onEvaluate) onEvaluate();
+                        else onSelect();
+                    }}
+                    className={`w-full mt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${hasEvaluated
+                        ? 'bg-transparent border border-gray-200 text-secondary-text opacity-80 hover:bg-gray-50'
+                        : 'bg-brand-green text-white shadow-sm shadow-brand-green/30 hover:brightness-105 active:scale-[0.97] animate-in fade-in zoom-in-95'
+                        }`}
+                >
+                    <span className="text-base">{hasEvaluated ? '✓' : '⭐'}</span>
+                    {hasEvaluated ? 'Avaliações Enviadas' : 'Avaliar Jogadores'}
+                </button>
+            )}
         </div>
     )
 }
@@ -137,6 +158,13 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
     const { isAdminInAnyGroup } = useCurrentUser()
     const { matches, loading, error } = useMatches()
     const { data: myRegistrations } = useMyRegistrations()
+    const { evaluatedMatchIds } = useMyEvaluatedMatches()
+
+    const handleEvaluate = (matchId: string) => {
+        // We push the state to the URL so MatchDetail can pick it up
+        window.history.pushState({}, '', `?evaluate=true`)
+        onSelectMatch(matchId)
+    }
 
     return (
         <>
@@ -176,7 +204,9 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
                                 key={match.id}
                                 match={match}
                                 myStatus={myRegistrations[match.id]}
+                                hasEvaluated={evaluatedMatchIds.has(match.id)}
                                 onSelect={() => onSelectMatch(match.id)}
+                                onEvaluate={() => handleEvaluate(match.id)}
                             />
                         ))}
                     </div>

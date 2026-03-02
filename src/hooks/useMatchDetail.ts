@@ -15,6 +15,7 @@ export interface Registration {
 
 export interface MatchDetailData {
     id: string
+    groupId: string
     title: string | null
     scheduledAt: string
     maxPlayers: number

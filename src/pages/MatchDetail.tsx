@@ -14,6 +14,7 @@ import { useDraftState } from '@/hooks/useDraftState'
 import DraftBoard from '@/components/DraftBoard'
 import { type DraftPlayer, getTeamColorConfig } from '@/lib/draft'
 import EvaluationFlow from '@/components/EvaluationFlow'
+import AddPlayerModal from '@/components/AddPlayerModal'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 
 const logger = createLogger('MatchDetail')
@@ -267,12 +268,21 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
 
     // Evaluation State
     const [isEvaluationOpen, setIsEvaluationOpen] = useState(false)
+    const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
     const { hasEvaluated: hasAlreadyEvaluated, fetchMyEvaluations } = useMatchEvaluations(matchId, session.user.id)
 
     // Fetch evaluations when match is closed/finished
     useEffect(() => {
         if (data && (data.status === 'CLOSED' || data.status === 'FINISHED') && data.myRegistration?.status === 'CONFIRMED') {
             fetchMyEvaluations()
+
+            // Auto-open evaluation modal if ?evaluate=true is in URL
+            const urlParams = new URLSearchParams(window.location.search)
+            if (urlParams.get('evaluate') === 'true') {
+                setIsEvaluationOpen(true)
+                // Optionally clean up the URL to avoid reopening on refresh
+                window.history.replaceState({}, '', window.location.pathname)
+            }
         }
     }, [data?.status, data?.myRegistration?.status, fetchMyEvaluations])
 
@@ -546,6 +556,17 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                         </div>
                     )}
 
+                    {/* Admin: Add Player to OPEN match */}
+                    {isAdmin && data.status === 'OPEN' && (
+                        <button
+                            onClick={() => setIsAddPlayerOpen(true)}
+                            className="w-full py-3 rounded-2xl border-2 border-dashed border-brand-green/30 text-brand-green font-semibold text-sm flex items-center justify-center gap-2 hover:bg-brand-green/5 hover:border-brand-green/50 active:scale-[0.98] transition-all"
+                        >
+                            <Users size={16} />
+                            + Adicionar Jogador
+                        </button>
+                    )}
+
                     {/* Admin: pending confirmations */}
                     {isAdmin && pendingReserved.length > 0 && (
                         <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex flex-col gap-2">
@@ -657,6 +678,16 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                     confirmedRegistrations={data.registrations.filter(r => r.status === 'CONFIRMED')}
                     onClose={() => setIsEvaluationOpen(false)}
                     onSuccess={() => fetchMyEvaluations()}
+                />
+            )}
+
+            {isAddPlayerOpen && data && (
+                <AddPlayerModal
+                    matchId={matchId}
+                    groupId={data.groupId}
+                    existingRegistrations={data.registrations}
+                    onClose={() => setIsAddPlayerOpen(false)}
+                    onPlayerAdded={refetch}
                 />
             )}
         </div>

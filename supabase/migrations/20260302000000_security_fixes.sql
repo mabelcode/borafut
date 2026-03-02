@@ -10,6 +10,7 @@
 CREATE OR REPLACE FUNCTION public.protect_user_sensitive_fields()
 RETURNS trigger AS $$
 BEGIN
+    SET search_path = public, pg_temp;
     -- Se quem está alterando não for Super Admin
     IF NOT public.is_super_admin() THEN
         -- Reverter tentativas de alteração de campos sensíveis para o valor antigo
@@ -91,7 +92,8 @@ BEGIN
         DECLARE
              v_group_id uuid;
         BEGIN
-             SELECT "groupId" INTO v_group_id FROM matches WHERE id = NEW."matchId";
+             SET search_path = public, pg_temp;
+             SELECT "groupId" INTO v_group_id FROM public.matches WHERE id = NEW."matchId";
              IF NOT public.is_super_admin() AND NOT public.is_group_admin(v_group_id) THEN
                  RAISE EXCEPTION 'Apenas administradores podem confirmar a inscrição';
              END IF;
@@ -120,6 +122,7 @@ DECLARE
     v_evaluator_status text;
     v_evaluated_status text;
 BEGIN
+    SET search_path = public, pg_temp;
     -- Validar auto-avaliação
     IF NEW."evaluatorId" = NEW."evaluatedId" THEN
         RAISE EXCEPTION 'Você não pode avaliar a si mesmo.';
@@ -130,7 +133,7 @@ BEGIN
     FROM public.matches
     WHERE id = NEW."matchId";
 
-    IF v_match_status NOT IN ('CLOSED', 'FINISHED') THEN
+    IF v_match_status IS NULL OR v_match_status NOT IN ('CLOSED', 'FINISHED') THEN
         RAISE EXCEPTION 'Avaliações só permitidas após o fechamento da partida.';
     END IF;
 
@@ -139,7 +142,7 @@ BEGIN
     FROM public.match_registrations
     WHERE "matchId" = NEW."matchId" AND "userId" = NEW."evaluatorId";
 
-    IF v_evaluator_status != 'CONFIRMED' THEN
+    IF v_evaluator_status IS NULL OR v_evaluator_status != 'CONFIRMED' THEN
         RAISE EXCEPTION 'Apenas jogadores confirmados podem enviar avaliações.';
     END IF;
 
@@ -148,7 +151,7 @@ BEGIN
     FROM public.match_registrations
     WHERE "matchId" = NEW."matchId" AND "userId" = NEW."evaluatedId";
 
-    IF v_evaluated_status != 'CONFIRMED' THEN
+    IF v_evaluated_status IS NULL OR v_evaluated_status != 'CONFIRMED' THEN
         RAISE EXCEPTION 'Você só pode avaliar jogadores confirmados nesta partida.';
     END IF;
 

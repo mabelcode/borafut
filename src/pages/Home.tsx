@@ -1,4 +1,4 @@
-import { Calendar, Users, CircleDollarSign, Plus, ChevronRight, Loader2, Clock, ShieldCheck, AlertCircle, Settings } from 'lucide-react'
+import { Calendar, Users, CircleDollarSign, Plus, ChevronRight, Loader2, Clock, ShieldCheck, AlertCircle, Settings, CheckCircle2 } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useMatches, type Match } from '@/hooks/useMatches'
 import { useMyRegistrations, type MyRegistrationsMap } from '@/hooks/useMyRegistrations'
@@ -113,20 +113,24 @@ function MatchCard({
 
             {/* Evaluation CTA for Closed/Finished Matches */}
             {(match.status === 'CLOSED' || match.status === 'FINISHED') && myStatus === 'CONFIRMED' && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (onEvaluate) onEvaluate();
-                        else onSelect();
-                    }}
-                    className={`w-full mt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${hasEvaluated
-                        ? 'bg-transparent border border-gray-200 text-secondary-text opacity-80 hover:bg-gray-50'
-                        : 'bg-brand-green text-white shadow-sm shadow-brand-green/30 hover:brightness-105 active:scale-[0.97] animate-in fade-in zoom-in-95'
-                        }`}
-                >
-                    <span className="text-base">{hasEvaluated ? '✓' : '⭐'}</span>
-                    {hasEvaluated ? 'Avaliações Enviadas' : 'Avaliar Jogadores'}
-                </button>
+                hasEvaluated ? (
+                    <div className="w-full mt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-brand-green/5 border border-brand-green/20 text-brand-green cursor-default">
+                        <CheckCircle2 size={16} />
+                        Avaliações Enviadas
+                    </div>
+                ) : (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onEvaluate) onEvaluate();
+                            else onSelect();
+                        }}
+                        className="w-full mt-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-brand-green text-white shadow-sm shadow-brand-green/30 hover:brightness-105 active:scale-[0.97] transition-all duration-150 animate-in fade-in zoom-in-95"
+                    >
+                        <span className="text-base">⭐</span>
+                        Avaliar Jogadores
+                    </button>
+                )
             )}
         </div>
     )

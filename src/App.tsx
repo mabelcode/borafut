@@ -141,6 +141,14 @@ export function AppInner({
             } else {
               setAppState('home')
             }
+          } else if (pageFromUrl === 'match-detail') {
+            const matchId = params.get('matchId')
+            if (matchId) {
+              setSelectedMatchId(matchId)
+              setAppState('match-detail')
+            } else {
+              setAppState('home')
+            }
           } else {
             setAppState(pageFromUrl)
           }
@@ -161,6 +169,10 @@ export function AppInner({
     if (appState === 'home') {
       url.searchParams.delete('page')
       url.searchParams.delete('groupId')
+      url.searchParams.delete('userId')
+      url.searchParams.delete('matchId')
+      url.searchParams.delete('tab')
+      url.searchParams.delete('evaluate')
     } else {
       url.searchParams.set('page', appState)
       if (appState === 'super-admin-group' && selectedGroupId) {
@@ -175,13 +187,19 @@ export function AppInner({
         url.searchParams.delete('userId')
       }
 
+      if (appState === 'match-detail' && selectedMatchId) {
+        url.searchParams.set('matchId', selectedMatchId)
+      } else {
+        url.searchParams.delete('matchId')
+      }
+
       // If we are navigating away from super-admin or group-admin entirely, clear the tab
       if (!appState.startsWith('super-admin') && appState !== 'group-admin') {
         url.searchParams.delete('tab')
       }
     }
     window.history.replaceState({}, '', url.toString())
-  }, [appState])
+  }, [appState, selectedGroupId, selectedUserId, selectedMatchId])
 
   // If still loading initial state
   if (loading && appState === 'loading') {
@@ -200,7 +218,7 @@ export function AppInner({
       title={STATE_TITLES[appState] || 'Borafut'}
       user={user}
       authMeta={session.user.user_metadata}
-      onHome={() => setAppState('home')}
+      onHome={() => { window.location.href = window.location.origin + window.location.pathname }}
       onSignOut={async () => {
         await supabase.auth.signOut()
         setAppState('login')

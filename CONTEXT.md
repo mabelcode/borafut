@@ -65,7 +65,7 @@ group_members.role = 'ADMIN' | 'PLAYER'
 
 - Cada **bolha** é um grupo isolado com seus próprios membros e partidas.
 - Usuários entram via **link de convite** gerado pelo Group Admin:
-  - URL: `borafut.app/?token=<inviteToken>` — token hex de 32 chars
+  - URL: `borafut.com.br/?token=<inviteToken>` — token hex de 32 chars
   - Multi-uso; admin define duração (24h / 7d / 30d / sem expiração)
   - Admin pode invalidar regenerando o token
 - Pós-onboarding sem grupo → tela "Aguardando convite".

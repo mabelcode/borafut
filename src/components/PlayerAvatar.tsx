@@ -31,6 +31,7 @@ export default function PlayerAvatar({ src, name, position, size = 'md' }: Props
     const [imgError, setImgError] = useState(false)
     const initials = name
         .split(' ')
+        .filter(Boolean)
         .map(w => w[0])
         .slice(0, 2)
         .join('')

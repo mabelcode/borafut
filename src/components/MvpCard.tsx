@@ -48,11 +48,13 @@ export default function MvpCard({ mvps, matchTitle, matchDate, onClose }: Props)
             downloadImage(dataUrl)
 
             // Open WhatsApp with text (they just need to select the downloaded image)
-            const text = `🏆 Craque da Partida: ${mvps.map(m => m.displayName).join(', ')} ⭐ ${Number(mvps[0].avgScore).toFixed(1)} — via borafut.com.br`
+            const text = mvps.length > 0
+                ? `🏆 Craque da Partida: ${mvps.map(m => m.displayName).join(', ')} ⭐ ${Number(mvps[0].avgScore).toFixed(1)} — via borafut.com.br`
+                : `🏆 Craque da Partida — via borafut.com.br`
 
             // Allow a tiny delay for download to start
             setTimeout(() => {
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
             }, 300)
         } catch (err) {
             console.error('WhatsApp share error:', err)
@@ -85,9 +87,13 @@ export default function MvpCard({ mvps, matchTitle, matchDate, onClose }: Props)
                         return
                     }
                     // 2. Device supports share but not files → share text only
+                    const text = mvps.length > 0
+                        ? `🏆 Craque da Partida: ${mvps.map(m => m.displayName).join(', ')} ⭐ ${Number(mvps[0].avgScore).toFixed(1)} — via borafut.com.br`
+                        : `🏆 Craque da Partida — via borafut.com.br`
+
                     await navigator.share({
                         title: `Craque da Partida — ${matchTitle || 'BoraFut'}`,
-                        text: `🏆 Craque da Partida: ${mvps.map(m => m.displayName).join(', ')} ⭐ ${Number(mvps[0].avgScore).toFixed(1)} — via borafut.com.br`,
+                        text,
                     })
                     // Also download the image so they can attach manually
                     downloadImage(dataUrl)

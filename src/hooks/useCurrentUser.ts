@@ -84,20 +84,28 @@ export function useCurrentUser() {
     const authUser = data?.authUser ?? null
 
     // Sync avatarUrl from Google OAuth if it changed (runs once per change)
-    const syncedRef = useRef(false)
+    const lastSyncedAvatarRef = useRef<string | null>(null)
     const authAvatarUrl = (authUser?.user_metadata as { avatar_url?: string } | null)?.avatar_url ?? null
     const needsSync = !!user && !!authAvatarUrl && user.avatarUrl !== authAvatarUrl
 
     useEffect(() => {
-        if (!needsSync || syncedRef.current) return
-        syncedRef.current = true
+        if (!needsSync || lastSyncedAvatarRef.current === authAvatarUrl) return
+        lastSyncedAvatarRef.current = authAvatarUrl
 
-        supabase.from('users').update({ avatarUrl: authAvatarUrl }).eq('id', user!.id).then(() => {
-            queryClient.setQueryData<CurrentUserQueryData>(['currentUser'], (old) => {
-                if (!old?.user) return old
-                return { ...old, user: { ...old.user, avatarUrl: authAvatarUrl } }
-            })
-        })
+        const updateAvatar = async () => {
+            try {
+                const { error } = await supabase.from('users').update({ avatarUrl: authAvatarUrl }).eq('id', user!.id)
+                if (error) throw error
+                queryClient.setQueryData<CurrentUserQueryData>(['currentUser'], (old) => {
+                    if (!old?.user) return old
+                    return { ...old, user: { ...old.user, avatarUrl: authAvatarUrl } }
+                })
+            } catch (err) {
+                logger.error('Error syncing avatar on auth', err)
+                lastSyncedAvatarRef.current = null // allow retry on next attempt
+            }
+        }
+        updateAvatar()
     }, [needsSync, authAvatarUrl, user, queryClient])
 
     const updateProfileMutation = useMutation({

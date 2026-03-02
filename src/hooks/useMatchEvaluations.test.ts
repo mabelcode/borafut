@@ -86,9 +86,7 @@ describe('useMatchEvaluations Hook', () => {
         const { result } = renderHook(() => useMatchEvaluations(matchId, userId))
 
         let success = false
-        await waitFor(async () => {
-            success = await result.current.submitEvaluations(evaluations)
-        })
+        success = await result.current.submitEvaluations(evaluations)
 
         expect(success).toBe(true)
         expect(supabase.rpc).toHaveBeenCalledWith('submit_match_evaluations', {
@@ -108,9 +106,7 @@ describe('useMatchEvaluations Hook', () => {
         const { result } = renderHook(() => useMatchEvaluations(matchId, userId))
 
         let success = true
-        await waitFor(async () => {
-            success = await result.current.submitEvaluations(evaluations)
-        })
+        success = await result.current.submitEvaluations(evaluations)
 
         expect(success).toBe(false)
         await waitFor(() => {

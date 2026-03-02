@@ -160,7 +160,7 @@ export default function UserProfile({ onBack, onViewMatch }: Props) {
                             <section className="bg-surface rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-4">
                                 <div className="relative">
                                     {authMeta?.avatar_url ? (
-                                        <img src={authMeta.avatar_url} alt="Avatar" className="w-30 h-30 rounded-full shadow-md object-cover border-4 border-surface" />
+                                        <img src={authMeta.avatar_url} alt="Avatar" className="w-28 h-28 rounded-full shadow-md object-cover border-4 border-surface" />
                                     ) : (
                                         <div className="w-20 h-20 rounded-full bg-brand-green text-white flex items-center justify-center text-3xl font-bold shadow-md border-4 border-surface">
                                             {initials}

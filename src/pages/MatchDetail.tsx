@@ -671,9 +671,14 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
 
                                             <button
                                                 onClick={async () => {
-                                                    setNoEvaluationsMsg(false)
-                                                    const count = await computeMvps()
-                                                    if (count === 0) setNoEvaluationsMsg(true)
+                                                    try {
+                                                        setNoEvaluationsMsg(false)
+                                                        const count = await computeMvps()
+                                                        if (count === 0) setNoEvaluationsMsg(true)
+                                                    } catch (err) {
+                                                        logger.error('Error computing MVPs', err)
+                                                        setNoEvaluationsMsg(true)
+                                                    }
                                                 }}
                                                 disabled={isComputing || !hasAnyEvaluation}
                                                 className="px-5 py-2.5 bg-amber-500 text-gray-900 font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-amber-400 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-amber-500/20 w-full justify-center mt-2"

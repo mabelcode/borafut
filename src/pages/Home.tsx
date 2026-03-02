@@ -165,8 +165,9 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
     const { evaluatedMatchIds } = useMyEvaluatedMatches()
 
     const handleEvaluate = (matchId: string) => {
-        // We push the state to the URL so MatchDetail can pick it up
-        window.history.pushState({}, '', `?evaluate=true`)
+        const params = new URLSearchParams(window.location.search)
+        params.set('evaluate', 'true')
+        window.history.pushState({}, '', '?' + params.toString())
         onSelectMatch(matchId)
     }
 

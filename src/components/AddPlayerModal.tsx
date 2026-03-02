@@ -36,7 +36,7 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
     const [addedIds, setAddedIds] = useState<string[]>([])
 
     // Fetch group members
-    const { data: membersData, isLoading: loadingMembers } = useQuery({
+    const { data: membersData, isLoading: loadingMembers, error: membersError } = useQuery({
         queryKey: ['groupMembersForMatch', groupId],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -129,6 +129,12 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
                     {loadingMembers ? (
                         <div className="flex justify-center py-12">
                             <Loader2 size={24} className="animate-spin text-secondary-text" />
+                        </div>
+                    ) : membersError ? (
+                        <div className="text-center py-16 flex flex-col items-center gap-3">
+                            <p className="text-sm text-brand-red font-medium">
+                                Erro ao carregar membros do grupo. Tente novamente.
+                            </p>
                         </div>
                     ) : availablePlayers.length === 0 ? (
                         <div className="text-center py-16 flex flex-col items-center gap-3">

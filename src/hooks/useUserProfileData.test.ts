@@ -106,13 +106,23 @@ describe('useUserProfileData Hook', () => {
     })
 
     it('returns false if leave group fails', async () => {
-        vi.mocked(supabase.from).mockReturnValue({
-            delete: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                    eq: vi.fn().mockResolvedValue({ error: { message: 'Network error' } })
-                })
-            })
-        } as any)
+        vi.mocked(supabase.from).mockImplementation((table: string) => {
+            if (table === 'group_members') {
+                return {
+                    delete: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            eq: vi.fn().mockResolvedValue({ error: { message: 'Network error' } })
+                        })
+                    })
+                } as any
+            }
+            return {
+                select: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                order: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockResolvedValue({ data: [], error: null })
+            } as any
+        })
 
         const { result } = renderHook(() => useUserProfileData(userId))
 

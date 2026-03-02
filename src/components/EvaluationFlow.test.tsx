@@ -15,6 +15,7 @@ describe('EvaluationFlow Component', () => {
         // Default hook return state
         mockUseMatchEvaluations.mockReturnValue({
             ratingsMap: {},
+            currentRating: 0,
             loading: false,
             submitting: false,
             submitted: false,

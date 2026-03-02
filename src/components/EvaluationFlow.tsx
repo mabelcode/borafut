@@ -20,6 +20,7 @@ export default function EvaluationFlow({ matchId, currentUserId, confirmedRegist
     const [showSuccess, setShowSuccess] = useState(false)
 
     const playersToEvaluate = confirmedRegistrations.filter(r => r.userId !== currentUserId)
+    const evaluableIds = useMemo(() => new Set(playersToEvaluate.map(p => p.userId)), [playersToEvaluate])
 
     // Merge: user edits take precedence over server prefilled data
     const mergedRatings = useMemo(
@@ -38,7 +39,7 @@ export default function EvaluationFlow({ matchId, currentUserId, confirmedRegist
     const handleSubmit = async () => {
         const payload: EvaluationInput[] = []
         for (const [evaluatedId, scoreGiven] of Object.entries(mergedRatings)) {
-            if (scoreGiven >= 1 && scoreGiven <= 5) {
+            if (evaluableIds.has(evaluatedId) && scoreGiven >= 1 && scoreGiven <= 5) {
                 payload.push({ evaluatedId, scoreGiven })
             }
         }
@@ -56,7 +57,7 @@ export default function EvaluationFlow({ matchId, currentUserId, confirmedRegist
         }
     }
 
-    const ratedCount = Object.keys(mergedRatings).length
+    const ratedCount = Object.keys(mergedRatings).filter(id => evaluableIds.has(id)).length
     const allRated = playersToEvaluate.length > 0 &&
         playersToEvaluate.every(p => mergedRatings[p.userId] >= 1 && mergedRatings[p.userId] <= 5)
 
@@ -108,8 +109,10 @@ export default function EvaluationFlow({ matchId, currentUserId, confirmedRegist
                             </p>
                             {playersToEvaluate.map(player => {
                                 const playerName = player.users?.displayName || 'Jogador'
-                                const position = player.users?.mainPosition === 'GOALKEEPER' ? 'Goleiro' :
-                                    player.users?.mainPosition === 'DEFENSE' ? 'Defesa' : 'Ataque'
+                                const rawPosition = player.users?.mainPosition
+                                const position = rawPosition === 'GOALKEEPER' ? 'Goleiro' :
+                                    rawPosition === 'DEFENSE' ? 'Defesa' :
+                                        rawPosition === 'ATTACK' ? 'Ataque' : 'Posição desconhecida'
                                 const currentRating = mergedRatings[player.userId] || 0
 
                                 return (

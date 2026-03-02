@@ -93,11 +93,13 @@ group_members.role = 'ADMIN' | 'PLAYER'
 ### D. Algoritmo de Sorteio
 - Apenas `CONFIRMED`. Snake draft por posição + `globalScore`. Persiste `teamNumber`.
 
-### E. Avaliação 360° (Pós-Jogo)
+### E. Avaliação 360° e MVP (Pós-Jogo)
 - **Não mandatório:** Jogadores escolhem se desejam realizar a avaliação.
 - **Escopo:** Cada jogador pode avaliar todos os demais participantes daquela partida específica.
 - **Nota 1–5:** Impacta o `globalScore` do jogador avaliado.
-- **Histórico:** Avaliações vinculadas à partida para consulta e composição do score.
+- **Craque da Partida (MVP):** Jogador com a maior média de notas na partida.
+- **Card de Destaque:** O Admin pode gerar e compartilhar um card visual (imagem) do MVP através da Web Share API.
+- **Histórico:** Avaliações e o destaque (MVP) ficam vinculados à partida e visíveis no histórico de todos os participantes.
 
 ### F. Painel Super Admin
 Acessível via ícone 🛡 no header da Home (visível apenas para `isSuperAdmin`).
@@ -137,7 +139,7 @@ Acessível via ícone de avatar (foto de perfil) no header da Home. Garante auto
 
 **3. Histórico e Vínculos**
 - **Grupos (Bolhas):** Lista de todos os grupos do qual o usuário é membro. **O usuário tem autonomia para se auto-remover (Sair do Grupo) a qualquer momento.**
-- **Histórico de Partidas:** Lista cronológica das partidas anteriores onde o status foi `CONFIRMED`. Clique leva aos detalhes da partida (para preencher as avaliações 360°, por exemplo).
+- **Histórico de Partidas:** Lista cronológica das partidas anteriores onde o status foi `CONFIRMED`. Clique leva aos detalhes da partida (para preencher as avaliações 360° ou visualizar o MVP e estatísticas daquela rodada).
 
 ---
 
@@ -259,6 +261,8 @@ audit_log (
 - **Pix:** `pixKey` em `users`. QR Code 100% frontend via `qrcode-pix` + `react-qr-code`.
 - **Avaliações Pós-Jogo:** Opcionais (não mandatórias). Um jogador pode avaliar qualquer outro que participou da mesma partida. O registro é vinculado à partida e a média das notas atualiza o `globalScore`.
 - **Taxa:** 5% informativa no MVP.
+- **Ciclo de Vida da Partida:** `OPEN` (inscricões) -> `CLOSED` (sorteada/em andamento) -> `FINISHED` (finalizada).
+- **Encerramento:** O Admin deve encerrar a partida manualmente para liberar as avaliações 360°.
 - **Bolha:** visibilidade escopada ao `groupId`. Sem grupo → tela "Aguardando convite".
 - **Link de convite:** multi-uso, duração opcional via `inviteExpiresAt`.
 - **Sentry:** todo `catch` de operação crítica deve chamar `Sentry.captureException()` ou usar o `logger.error()`.

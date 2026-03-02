@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
-    RefreshCw, X
+    RefreshCw, X, Star
 } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { QrCodePix } from 'qrcode-pix'
@@ -13,6 +13,8 @@ import type { Session } from '@supabase/supabase-js'
 import { useDraftState } from '@/hooks/useDraftState'
 import DraftBoard from '@/components/DraftBoard'
 import { type DraftPlayer, getTeamColorConfig } from '@/lib/draft'
+import EvaluationFlow from '@/components/EvaluationFlow'
+import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 
 const logger = createLogger('MatchDetail')
 
@@ -262,6 +264,17 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
     const [isDrafting, setIsDrafting] = useState(false)
     const [isConfigModalOpen, setIsConfigModalOpen] = useState(false)
     const [savingDraft, setSavingDraft] = useState(false)
+
+    // Evaluation State
+    const [isEvaluationOpen, setIsEvaluationOpen] = useState(false)
+    const { hasEvaluated: hasAlreadyEvaluated, fetchMyEvaluations } = useMatchEvaluations(matchId, session.user.id)
+
+    // Fetch evaluations when match is closed/finished
+    useEffect(() => {
+        if (data && (data.status === 'CLOSED' || data.status === 'FINISHED') && data.myRegistration?.status === 'CONFIRMED') {
+            fetchMyEvaluations()
+        }
+    }, [data?.status, data?.myRegistration?.status, fetchMyEvaluations])
 
     // Prepare players for the draft hook
     const confirmedPlayers: DraftPlayer[] = useMemo(() => {
@@ -566,6 +579,20 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                         />
                     )}
 
+                    {/* Evaluation CTA */}
+                    {(data.status === 'CLOSED' || data.status === 'FINISHED') && data.myRegistration?.status === 'CONFIRMED' && (
+                        <button
+                            onClick={() => setIsEvaluationOpen(true)}
+                            className={`w-full py-4 rounded-2xl font-bold text-sm shadow-xl flex items-center justify-center gap-2 hover:brightness-105 active:scale-95 transition-all mb-4 ${hasAlreadyEvaluated
+                                ? 'bg-surface border border-brand-green text-brand-green shadow-brand-green/10'
+                                : 'bg-brand-green text-white shadow-brand-green/30'
+                                }`}
+                        >
+                            <Star size={18} className="fill-current" />
+                            {hasAlreadyEvaluated ? 'EDITAR AVALIAÇÕES' : 'AVALIAR JOGADORES'}
+                        </button>
+                    )}
+
                     {/* All players or Teams based on status */}
                     {(data.status === 'CLOSED' || data.status === 'FINISHED') && data.registrations.some(r => r.teamNumber) ? (
                         <div className="flex flex-col gap-4 pb-16">
@@ -621,6 +648,16 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                         </div>
                     ))}
                 </>
+            )}
+
+            {isEvaluationOpen && data && (
+                <EvaluationFlow
+                    matchId={matchId}
+                    currentUserId={session.user.id}
+                    confirmedRegistrations={data.registrations.filter(r => r.status === 'CONFIRMED')}
+                    onClose={() => setIsEvaluationOpen(false)}
+                    onSuccess={() => fetchMyEvaluations()}
+                />
             )}
         </div>
     )

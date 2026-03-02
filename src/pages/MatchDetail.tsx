@@ -300,11 +300,10 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
     }, [data?.managerId])
 
     async function handleConfirm(regId: string) {
-        const { error } = await supabase
-            .from('match_registrations')
-            .update({ status: 'CONFIRMED' })
-            .eq('id', regId)
-        if (error) logger.error('Erro ao confirmar pagamento', error)
+        const { error } = await supabase.rpc('admin_confirm_payment', {
+            p_registration_id: regId
+        })
+        if (error) logger.error('Erro ao confirmar pagamento (RPC)', error)
         refetch()
     }
 

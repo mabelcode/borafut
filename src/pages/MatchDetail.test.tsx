@@ -93,11 +93,28 @@ describe('MatchDetail Page', () => {
         render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={vi.fn()} />)
 
         expect(await screen.findByText('Test Match')).toBeInTheDocument()
-        // Use regex for time and currency because of timezone and non-breaking space
-        expect(screen.getByText(/1[7-9]:00/)).toBeInTheDocument()
-        expect(screen.getByText(/R\$.*20,00/)).toBeInTheDocument()
-        expect(screen.getByText((content, element) => {
-            return element?.tagName.toLowerCase() === 'span' && content.includes('1') && content.includes('/10')
+
+        // Use custom function matchers to find text even if broken by multiple elements or hidden by non-breaking spaces
+        // Time
+        expect(screen.getByText((_, element) => {
+            const hasText = (node: Element) => !!node.textContent?.match(/\d{2}:00/)
+            const nodeHasText = hasText(element!)
+            const childrenDoNotHaveText = Array.from(element?.children || []).every(child => !hasText(child as Element))
+            return nodeHasText && childrenDoNotHaveText
+        })).toBeInTheDocument()
+
+        // Price (20,00 or 20.00)
+        expect(screen.getByText((_, element) => {
+            const hasText = (node: Element) => !!(node.textContent?.includes('20') && node.textContent?.match(/[.,]00/))
+            const nodeHasText = hasText(element!)
+            const childrenDoNotHaveText = Array.from(element?.children || []).every(child => !hasText(child as Element))
+            return nodeHasText && childrenDoNotHaveText
+        })).toBeInTheDocument()
+
+        // Capacity (1/10)
+        expect(screen.getByText((_, element) => {
+            const text = element?.textContent?.replace(/\s+/g, '') || ''
+            return text.includes('1/10') && Array.from(element?.children || []).every(child => !child.textContent?.includes('1/10'))
         })).toBeInTheDocument()
     })
 

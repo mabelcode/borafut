@@ -48,6 +48,8 @@ const mockHistory = [
 describe('UserProfile', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        // Reset URL params between tests
+        window.history.replaceState({}, '', '/')
 
             ; (useCurrentUser as any).mockReturnValue({
                 user: mockUser,
@@ -79,10 +81,12 @@ describe('UserProfile', () => {
         expect(screen.getByText('4.8')).toBeInTheDocument() // Score
         expect(screen.getByText('1')).toBeInTheDocument()   // Matches played
 
-        // Assert groups & history
-        expect(screen.getByText('Meus Grupos (1)')).toBeInTheDocument()
-        expect(screen.getAllByText('Bola de Ouro')[0]).toBeInTheDocument()
-        expect(screen.getByText('Histórico Recente')).toBeInTheDocument()
+        // Assert groups
+        fireEvent.click(screen.getByText('Grupos'))
+        expect(screen.getByText('Bola de Ouro')).toBeInTheDocument()
+
+        // Assert history
+        fireEvent.click(screen.getByText('Histórico'))
         expect(screen.getByText('Racha de Terça')).toBeInTheDocument()
     })
 
@@ -135,6 +139,9 @@ describe('UserProfile', () => {
                 <UserProfile onBack={vi.fn()} />
             </BrowserRouter>
         )
+
+        // Switch to Groups tab
+        fireEvent.click(screen.getByText('Grupos'))
 
         const leaveButton = screen.getByTitle('Sair do grupo')
         fireEvent.click(leaveButton)

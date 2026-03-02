@@ -102,7 +102,8 @@ describe('Onboarding Component', () => {
                 id: 'user-1',
                 phoneNumber: '+5511988887777',
                 displayName: 'Marcos',
-                mainPosition: 'ATTACK'
+                mainPosition: 'ATTACK',
+                avatarUrl: null
             });
             expect(mockOnComplete).toHaveBeenCalled();
         });

@@ -329,7 +329,13 @@ export function AppInner({
       )}
 
       {appState === 'user-profile' && (
-        <UserProfile onBack={() => setAppState('home')} />
+        <UserProfile
+          onBack={() => setAppState('home')}
+          onViewMatch={(mId) => {
+            setSelectedMatchId(mId)
+            setAppState('match-detail')
+          }}
+        />
       )}
     </Layout>
   )

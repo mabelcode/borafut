@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Medal, UserRoundMinus, Trophy, ArrowLeft, UserRound, Users, Calendar } from 'lucide-react'
+import { Loader2, Medal, UserRoundMinus, Trophy, UserRound, Users, Calendar } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useUserProfileData, type ProfileGroup, type ProfileMatch } from '@/hooks/useUserProfileData'
 import PlayerAvatar from '@/components/PlayerAvatar'
@@ -8,9 +8,10 @@ type Tab = 'profile' | 'groups' | 'history'
 
 interface Props {
     onBack: () => void
+    onViewMatch?: (matchId: string) => void
 }
 
-export default function UserProfile({ onBack }: Props) {
+export default function UserProfile({ onBack, onViewMatch }: Props) {
     const { user, authUser, refetch, updateProfile } = useCurrentUser()
     const { groups, history, loading: loadingData, error, leaveGroup } = useUserProfileData(user?.id)
 
@@ -284,7 +285,7 @@ export default function UserProfile({ onBack }: Props) {
                             {history.map((match: ProfileMatch) => (
                                 <button
                                     key={match.id}
-                                    onClick={onBack}
+                                    onClick={() => onViewMatch ? onViewMatch(match.id) : onBack()}
                                     className="bg-surface border border-gray-100 hover:border-gray-200 hover:shadow-md rounded-2xl p-4 flex flex-col gap-3 shadow-sm transition-all text-left"
                                 >
                                     <div className="flex items-start justify-between w-full">

@@ -15,6 +15,7 @@ import DraftBoard from '@/components/DraftBoard'
 import { type DraftPlayer, getTeamColorConfig } from '@/lib/draft'
 import EvaluationFlow from '@/components/EvaluationFlow'
 import AddPlayerModal from '@/components/AddPlayerModal'
+import PlayerAvatar from '@/components/PlayerAvatar'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 
 const logger = createLogger('MatchDetail')
@@ -103,7 +104,6 @@ function PlayerRow({
     onConfirm?: (regId: string) => void
 }) {
     const name = reg.users?.displayName ?? 'Jogador'
-    const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
     const position = reg.users?.mainPosition ? POSITION_LABEL[reg.users.mainPosition] : '—'
     const [confirming, setConfirming] = useState(false)
 
@@ -122,9 +122,7 @@ function PlayerRow({
 
     return (
         <div className={`flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors ${isMe ? 'bg-brand-green/5 border border-brand-green/20' : 'hover:bg-gray-50'}`}>
-            <div className="size-9 rounded-full bg-brand-green/10 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-brand-green">{initials}</span>
-            </div>
+            <PlayerAvatar src={reg.users?.avatarUrl} name={name} position={reg.users?.mainPosition} size="sm" />
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-primary-text truncate">
                     {name} {isMe && <span className="text-[10px] text-secondary-text font-normal">(você)</span>}

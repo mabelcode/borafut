@@ -76,11 +76,13 @@ export default function Onboarding({ session, onComplete, onSignOut }: Props) {
         setLoading(true)
         setError('')
 
+        const authMeta = session.user.user_metadata as { avatar_url?: string } | null
         const { error } = await supabase.from('users').upsert({
             id: session.user.id,
             phoneNumber: `+55${phoneDigits}`,
             displayName: displayName.trim(),
             mainPosition: position,
+            avatarUrl: authMeta?.avatar_url ?? null,
         })
 
         if (error) {

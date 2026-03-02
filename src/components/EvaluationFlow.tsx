@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { X, Star, Loader2, Info, CheckCircle2 } from 'lucide-react'
 import { useMatchEvaluations, type EvaluationInput } from '@/hooks/useMatchEvaluations'
 import type { Registration } from '@/hooks/useMatchDetail'
+import PlayerAvatar from '@/components/PlayerAvatar'
 
 interface Props {
     matchId: string
@@ -114,11 +115,7 @@ export default function EvaluationFlow({ matchId, currentUserId, confirmedRegist
                                 return (
                                     <div key={player.userId} className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div className="size-9 rounded-full bg-brand-green/10 flex items-center justify-center shrink-0">
-                                                <span className="text-xs font-bold text-brand-green">
-                                                    {playerName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-                                                </span>
-                                            </div>
+                                            <PlayerAvatar src={player.users?.avatarUrl} name={playerName} position={player.users?.mainPosition} size="sm" />
                                             <div className="min-w-0">
                                                 <p className="font-semibold text-primary-text truncate">{playerName}</p>
                                                 <p className="text-[11px] text-secondary-text">{position}</p>

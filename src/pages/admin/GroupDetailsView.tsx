@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import SortSelector from '@/components/SortSelector'
+import PlayerAvatar from '@/components/PlayerAvatar'
 import type { SortOption } from '@/components/SortSelector'
 
 interface GroupDetailsViewProps {
@@ -30,6 +31,7 @@ interface GroupMember {
         mainPosition: string
         globalScore: number
         isSuperAdmin: boolean
+        avatarUrl: string | null
     }
 }
 
@@ -39,6 +41,7 @@ interface SearchUser {
     phoneNumber: string
     mainPosition: string
     globalScore: number
+    avatarUrl: string | null
 }
 
 export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewProps) {
@@ -64,7 +67,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                 supabase.from('groups').select('*').eq('id', groupId).single(),
                 supabase.from('group_members').select(`
                     id, role, joinedAt,
-                    user:users(id, displayName, mainPosition, globalScore, isSuperAdmin)
+                    user:users(id, displayName, mainPosition, globalScore, isSuperAdmin, avatarUrl)
                 `).eq('groupId', groupId)
             ])
 
@@ -87,7 +90,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('users')
-                .select('id, displayName, phoneNumber, mainPosition, globalScore')
+                .select('id, displayName, phoneNumber, mainPosition, globalScore, avatarUrl')
                 .limit(50)
 
             if (error) throw error
@@ -278,9 +281,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                             {availableUsers.map(u => (
                                 <div key={u.id} className="flex items-center justify-between p-3.5 hover:bg-gray-50 rounded-2xl transition-all group border border-transparent hover:border-gray-100">
                                     <div className="flex items-center gap-3">
-                                        <div className="size-10 rounded-full bg-brand-green/10 flex items-center justify-center text-sm font-bold text-brand-green border border-brand-green/20 shrink-0">
-                                            {u.displayName?.[0] || 'J'}
-                                        </div>
+                                        <PlayerAvatar src={u.avatarUrl} name={u.displayName || 'J'} position={u.mainPosition} />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-sm font-bold text-primary-text leading-tight truncate">{u.displayName}</span>
                                             <span className="text-[10px] text-secondary-text font-medium">{u.phoneNumber || 'Sem telefone'}</span>
@@ -383,12 +384,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                         {sortedMembers.map((member) => (
                             <div key={member.id} className="bg-surface border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                                 <div className="flex items-center gap-3">
-                                    <div className={`size-10 rounded-xl flex items-center justify-center ${member.role === 'ADMIN' || member.user?.isSuperAdmin
-                                        ? 'bg-brand-green/10 text-brand-green border border-brand-green/20'
-                                        : 'bg-gray-50 text-secondary-text border border-gray-100'
-                                        }`}>
-                                        {member.role === 'ADMIN' || member.user?.isSuperAdmin ? <Shield size={20} /> : <User size={20} />}
-                                    </div>
+                                    <PlayerAvatar src={member.user?.avatarUrl} name={member.user?.displayName || 'J'} position={member.user?.mainPosition} />
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-1.5">
                                             <span className="font-bold text-sm text-primary-text leading-tight">

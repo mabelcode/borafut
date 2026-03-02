@@ -4,6 +4,7 @@ import { X, Search, Loader2, Users, UserPlus, Check, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { createLogger } from '@/lib/logger'
 import type { Registration } from '@/hooks/useMatchDetail'
+import PlayerAvatar from '@/components/PlayerAvatar'
 
 const logger = createLogger('AddPlayerModal')
 
@@ -12,6 +13,7 @@ interface GroupMemberUser {
     displayName: string | null
     mainPosition: string | null
     globalScore: number
+    avatarUrl: string | null
 }
 
 interface Props {
@@ -39,7 +41,7 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('group_members')
-                .select('userId, user:users(id, displayName, mainPosition, globalScore)')
+                .select('userId, user:users(id, displayName, mainPosition, globalScore, avatarUrl)')
                 .eq('groupId', groupId)
 
             if (error) throw new Error(error.message)
@@ -142,7 +144,6 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
                             const player = m.user
                             if (!player) return null
                             const name = player.displayName ?? 'Jogador'
-                            const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
                             const position = player.mainPosition ? POSITION_LABEL[player.mainPosition] ?? player.mainPosition : '—'
                             const isAdding = addPlayerMutation.isPending && addPlayerMutation.variables === m.userId
                             const wasAdded = addedIds.includes(m.userId)
@@ -151,14 +152,12 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
                                 <div
                                     key={m.userId}
                                     className={`flex items-center justify-between p-3.5 rounded-2xl transition-all group border ${wasAdded
-                                            ? 'bg-brand-green/5 border-brand-green/10'
-                                            : 'border-transparent hover:bg-gray-50 hover:border-gray-100'
+                                        ? 'bg-brand-green/5 border-brand-green/10'
+                                        : 'border-transparent hover:bg-gray-50 hover:border-gray-100'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="size-10 rounded-full bg-brand-green/10 flex items-center justify-center text-sm font-bold text-brand-green border border-brand-green/20 shrink-0">
-                                            {initials}
-                                        </div>
+                                        <PlayerAvatar src={player.avatarUrl} name={name} position={player.mainPosition} />
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="text-sm font-bold text-primary-text leading-tight truncate">{name}</span>
                                             <div className="flex items-center gap-2 mt-0.5">
@@ -175,8 +174,8 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
                                         onClick={() => addPlayerMutation.mutate(m.userId)}
                                         disabled={isAdding || wasAdded}
                                         className={`text-[10px] font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 flex items-center gap-1.5 shrink-0 ${wasAdded
-                                                ? 'bg-brand-green/10 text-brand-green border border-brand-green/10'
-                                                : 'bg-brand-green/10 text-brand-green hover:bg-brand-green/20 border border-brand-green/10'
+                                            ? 'bg-brand-green/10 text-brand-green border border-brand-green/10'
+                                            : 'bg-brand-green/10 text-brand-green hover:bg-brand-green/20 border border-brand-green/10'
                                             }`}
                                     >
                                         {isAdding ? (

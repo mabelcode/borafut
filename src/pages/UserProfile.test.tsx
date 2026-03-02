@@ -151,4 +151,35 @@ describe('UserProfile', () => {
 
         confirmSpy.mockRestore()
     })
+
+    it('initializes on the history tab if ?tab=history is present', () => {
+        window.history.replaceState({}, '', '/?tab=history')
+
+        render(
+            <BrowserRouter>
+                <UserProfile onBack={vi.fn()} />
+            </BrowserRouter>
+        )
+
+        // History tab should be active, so we should see the match title
+        expect(screen.getByText('Racha de Terça')).toBeInTheDocument()
+    })
+
+    it('navigates to match detail when clicking a history card', () => {
+        const onViewMatchMock = vi.fn()
+        render(
+            <BrowserRouter>
+                <UserProfile onBack={vi.fn()} onViewMatch={onViewMatchMock} />
+            </BrowserRouter>
+        )
+
+        // Go to history tab
+        fireEvent.click(screen.getByText('Histórico'))
+
+        // Click the match card
+        const matchCard = screen.getByText('Racha de Terça').closest('button')
+        fireEvent.click(matchCard!)
+
+        expect(onViewMatchMock).toHaveBeenCalledWith('m1')
+    })
 })

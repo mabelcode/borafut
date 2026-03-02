@@ -8,9 +8,12 @@
 -- Somente Super Admins podem alterar essas colunas. Se o usuário comum tentar, revertemos para o OLD.
 
 CREATE OR REPLACE FUNCTION public.protect_user_sensitive_fields()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
-    SET search_path = public, pg_temp;
     -- Se quem está alterando não for Super Admin
     IF NOT public.is_super_admin() THEN
         -- Reverter tentativas de alteração de campos sensíveis para o valor antigo
@@ -19,7 +22,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS trg_protect_user_fields ON public.users;
 CREATE TRIGGER trg_protect_user_fields
@@ -61,20 +64,22 @@ BEGIN
     -- Atualizar o status
     UPDATE public.match_registrations
     SET status = 'CONFIRMED'
-    WHERE id = p_registration_id;
+    WHERE id = p_registration_id AND status IS DISTINCT FROM 'CONFIRMED';
 
-    -- Inserir log de auditoria
-    INSERT INTO public.audit_log (
-        "actorId",
-        action,
-        "targetId",
-        "targetType"
-    ) VALUES (
-        auth.uid(),
-        'CONFIRM_PAYMENT',
-        v_user_id,
-        'USER'
-    );
+    IF FOUND THEN
+        -- Inserir log de auditoria
+        INSERT INTO public.audit_log (
+            "actorId",
+            action,
+            "targetId",
+            "targetType"
+        ) VALUES (
+            auth.uid(),
+            'CONFIRM_PAYMENT',
+            v_user_id,
+            'USER'
+        );
+    END IF;
 END;
 $$;
 
@@ -83,16 +88,19 @@ GRANT EXECUTE ON FUNCTION public.admin_confirm_payment(uuid) TO authenticated;
 -- b) Ajustar RLS do match_registrations para proibir o usuário de auto-confirmar
 -- Permitimos que ele se atualize, mas adicionamos um trigger que impede mudança para CONFIRMED.
 CREATE OR REPLACE FUNCTION public.protect_registration_status()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     -- Se o status está mudando para CONFIRMED
-    IF NEW.status = 'CONFIRMED' AND OLD.status != 'CONFIRMED' THEN
+    IF NEW.status = 'CONFIRMED' AND OLD.status IS DISTINCT FROM 'CONFIRMED' THEN
         -- Apenas admins podem fazer essa transição direta via SQL puro
         -- (Embora recomendemos usar a RPC admin_confirm_payment, isso protege direct updates)
         DECLARE
              v_group_id uuid;
         BEGIN
-             SET search_path = public, pg_temp;
              SELECT "groupId" INTO v_group_id FROM public.matches WHERE id = NEW."matchId";
              IF NOT public.is_super_admin() AND NOT public.is_group_admin(v_group_id) THEN
                  RAISE EXCEPTION 'Apenas administradores podem confirmar a inscrição';
@@ -101,7 +109,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS trg_protect_registration_status ON public.match_registrations;
 CREATE TRIGGER trg_protect_registration_status
@@ -116,13 +124,16 @@ CREATE TRIGGER trg_protect_registration_status
 --   b) O Avaliador estava CONFIRMED
 --   c) O Avaliado estava CONFIRMED
 CREATE OR REPLACE FUNCTION public.protect_evaluations()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_match_status text;
     v_evaluator_status text;
     v_evaluated_status text;
 BEGIN
-    SET search_path = public, pg_temp;
     -- Validar auto-avaliação
     IF NEW."evaluatorId" = NEW."evaluatedId" THEN
         RAISE EXCEPTION 'Você não pode avaliar a si mesmo.';
@@ -157,7 +168,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS trg_protect_evaluations ON public.evaluations;
 CREATE TRIGGER trg_protect_evaluations

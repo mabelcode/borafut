@@ -70,9 +70,9 @@ class Logger {
                 exceptionToCapture = error;
             } else if (error && typeof error === 'object') {
                 // Parse Supabase PostgrestError or other plain objects
-                const msg = (error as any).message || message;
+                const msg = (error as { message?: string }).message || message;
                 exceptionToCapture = new Error(String(msg));
-                exceptionToCapture.name = (error as any).name || 'ObjectException';
+                exceptionToCapture.name = (error as { name?: string }).name || 'ObjectException';
             } else if (error !== undefined && error !== null) {
                 exceptionToCapture = new Error(String(error));
             } else {

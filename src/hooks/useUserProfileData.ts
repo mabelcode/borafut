@@ -26,6 +26,24 @@ interface GroupMemberRow {
     groups: { id: string; name: string } | null
 }
 
+interface MatchRegistrationRow {
+    id: string
+    matches: {
+        id: string
+        title: string | null
+        scheduledAt: string
+        groupId: string
+        status: string
+        groups: { name: string } | null
+        match_mvps: {
+            users: {
+                displayName: string | null
+                avatarUrl: string | null
+            } | null
+        }[]
+    } | null
+}
+
 
 
 export function useUserProfileData(userId?: string) {
@@ -50,10 +68,9 @@ export function useUserProfileData(userId?: string) {
             if (groupErr) throw groupErr
 
             // Type assertions because the join returns arrays/objects
-            const formattedGroups: ProfileGroup[] = (groupData || [])
-                .filter((gm: unknown) => (gm as GroupMemberRow).groups !== null)
-                .map((gm: unknown) => {
-                    const row = gm as GroupMemberRow
+            const formattedGroups: ProfileGroup[] = (groupData as unknown as GroupMemberRow[] || [])
+                .filter((row) => row.groups !== null)
+                .map((row) => {
                     return {
                         id: row.groups!.id,
                         name: row.groups!.name,
@@ -77,9 +94,8 @@ export function useUserProfileData(userId?: string) {
 
             if (matchErr) throw matchErr
 
-            const formattedHistory: ProfileMatch[] = (matchData || [])
-                .map((reg: unknown) => {
-                    const row = reg as any
+            const formattedHistory: ProfileMatch[] = (matchData as unknown as MatchRegistrationRow[] || [])
+                .map((row) => {
                     const matchMvps = row.matches?.match_mvps || []
                     return {
                         id: row.matches?.id ?? '',
@@ -87,7 +103,7 @@ export function useUserProfileData(userId?: string) {
                         scheduledAt: row.matches?.scheduledAt ?? '',
                         groupId: row.matches?.groupId ?? '',
                         groupName: row.matches?.groups?.name ?? 'Unknown Group',
-                        mvps: matchMvps.map((mvp: any) => ({
+                        mvps: matchMvps.map((mvp) => ({
                             displayName: mvp.users?.displayName ?? 'Jogador',
                             avatarUrl: mvp.users?.avatarUrl ?? null
                         }))

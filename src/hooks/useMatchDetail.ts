@@ -23,6 +23,8 @@ export interface MatchDetailData {
     price: number
     status: 'OPEN' | 'CLOSED' | 'FINISHED'
     managerId: string
+    confirmationDeadlineHours: number
+    createdAt: string
     registrations: Registration[]
     myRegistration: Registration | null
 }

@@ -84,7 +84,15 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
             queryClient.invalidateQueries({ queryKey: ['matchDetail', matchId] })
             onPlayerAdded()
         },
-        onError: (err: unknown) => {
+        onError: (err: any) => {
+            // Silently handle duplicate key error (already registered)
+            if (err?.code === '23505' || err?.message?.includes('unique constraint')) {
+                const userId = addPlayerMutation.variables
+                if (userId) setAddedIds(prev => [...prev, userId])
+                queryClient.invalidateQueries({ queryKey: ['matchDetail', matchId] })
+                onPlayerAdded()
+                return
+            }
             const message = err instanceof Error ? err.message : 'Erro ao adicionar jogador.'
             logger.error('Erro ao adicionar jogador à partida', { error: err })
             alert(message)

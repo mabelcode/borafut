@@ -178,6 +178,11 @@ function CTAButton({
         })
         setLoading(false)
         if (error) {
+            // Se o erro for de duplicidade (23505), tratamos como sucesso (já está inscrito)
+            if ((error as any).code === '23505') {
+                onAction()
+                return
+            }
             logger.error('Erro ao inscrever jogador na partida', error)
             setError(error.message); return
         }

@@ -174,4 +174,35 @@ describe('MatchDetail Page', () => {
         fireEvent.click(backBtn)
         expect(onBackMock).toHaveBeenCalled()
     })
+
+    it('handles duplicate registration (error 23505) gracefully', async () => {
+        const { supabase } = await import('@/lib/supabase')
+        const refetchMock = vi.fn()
+            ; (useMatchDetail as any).mockReturnValue({
+                data: mockMatchData,
+                loading: false,
+                error: null,
+                refetch: refetchMock
+            })
+
+        // Mock supabase.from().insert() to return the duplicate key error
+        const mockInsert = vi.fn().mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } })
+            ; (supabase.from as any).mockReturnValue({
+                insert: mockInsert,
+                select: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                single: vi.fn().mockResolvedValue({ data: { pixKey: 'admin@pix.com' }, error: null })
+            })
+
+        render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={vi.fn()} />)
+
+        const registerBtn = await screen.findByText('Tô Dentro!')
+        fireEvent.click(registerBtn)
+
+        await waitFor(() => {
+            // Should call refetch (onAction) instead of showing error
+            expect(refetchMock).toHaveBeenCalled()
+            expect(screen.queryByText('duplicate key')).not.toBeInTheDocument()
+        })
+    })
 })

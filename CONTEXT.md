@@ -285,3 +285,26 @@ audit_log (
   - `WARN`: Situações inesperadas que não impedem o funcionamento (logado no Sentry como **Warning**).
   - `ERROR`: Falhas que exigem atenção imediata (logado no Sentry como **Exception**).
 - Todo erro interceptado em blocos `catch` deve ser registrado via `logger.error(message, error)`.- **Grants explícitos:** tabelas criadas via migration exigem `GRANT` explícito ao role `authenticated` (não é automático como no Dashboard).
+
+---
+
+## 12. Melhorias Mapeadas (A Implementar)
+
+Estas melhorias foram listadas e devem ser implementadas seguindo os padrões de design e arquitetura do projeto.
+
+### A. Melhoria na Experiência de Pagamento (Pix)
+- **Ajustar Exibição:** Garantir que todos os usuários (independentemente da role) possam visualizar e copiar a chave Pix.
+- **Funcionalidade de Cópia:** Adicionar um botão de "Copiar Chave Pix" junto ao QR Code.
+- **Racional:** A maioria dos usuários acessa via celular, o que impossibilita o escaneamento do QR Code no próprio aparelho. A cópia da chave resolve essa fricção.
+
+### B. Compartilhamento do Status da Partida (Admin)
+Funcionalidade para o Group Admin compartilhar o status de uma partida aberta de forma profissional e moderna.
+- **Novos Campos:** Adicionar configuração de prazo para confirmação de vaga (ex: `vacancyConfirmationDeadline`). Valor padrão: **48 horas**.
+- **Conteúdo de Compartilhamento:**
+  - Informações básicas da partida (Título, Data/Hora, Vagas).
+  - Listagem de inscritos (`RESERVED` vs `CONFIRMED`).
+  - Destaque para quem pagou e quem está pendente.
+  - Alerta visual/textual sobre o tempo restante para expiração da reserva.
+- **Formatos sugeridos:** Texto padronizado e bem formatado para WhatsApp (ou opcionalmente geração de imagem dinâmica com os dados).
+- **Estética:** Manter o padrão premium e moderno da aplicação (alerta/alertas profissionais).
+

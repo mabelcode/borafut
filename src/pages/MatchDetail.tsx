@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
-    RefreshCw, X, Star, Trophy
+    RefreshCw, X, Star, Trophy, Share2
 } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { QrCodePix } from 'qrcode-pix'
@@ -17,6 +17,7 @@ import EvaluationFlow from '@/components/EvaluationFlow'
 import AddPlayerModal from '@/components/AddPlayerModal'
 import PlayerAvatar from '@/components/PlayerAvatar'
 import MvpCard from '@/components/MvpCard'
+import MatchStatusShare from '@/components/MatchStatusShare'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 import { useMatchMvp } from '@/hooks/useMatchMvp'
 
@@ -270,6 +271,7 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
     const [isEvaluationOpen, setIsEvaluationOpen] = useState(false)
     const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
     const [isMvpCardOpen, setIsMvpCardOpen] = useState(false)
+    const [isStatusShareOpen, setIsStatusShareOpen] = useState(false)
     const [noEvaluationsMsg, setNoEvaluationsMsg] = useState(false)
     const { hasEvaluated: hasAlreadyEvaluated, fetchMyEvaluations } = useMatchEvaluations(matchId, session.user.id)
     const { mvps, loading: mvpLoading, computeMvps, isComputing, evaluatorCount } = useMatchMvp(matchId, data?.status)
@@ -572,6 +574,17 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                         </button>
                     )}
 
+                    {/* Admin: Share match status */}
+                    {isAdmin && data.status === 'OPEN' && (
+                        <button
+                            onClick={() => setIsStatusShareOpen(true)}
+                            className="w-full py-3 rounded-2xl border border-gray-200 text-secondary-text font-semibold text-sm flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-primary-text active:scale-[0.98] transition-all"
+                        >
+                            <Share2 size={16} />
+                            Compartilhar Status
+                        </button>
+                    )}
+
                     {/* Admin: pending confirmations */}
                     {isAdmin && pendingReserved.length > 0 && (
                         <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex flex-col gap-2">
@@ -802,6 +815,25 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
                     matchTitle={data.title}
                     matchDate={data.scheduledAt}
                     onClose={() => setIsMvpCardOpen(false)}
+                />
+            )}
+
+            {isStatusShareOpen && data && (
+                <MatchStatusShare
+                    matchTitle={data.title ?? 'Partida'}
+                    matchData={{
+                        title: data.title ?? 'Partida',
+                        scheduledAt: data.scheduledAt,
+                        maxPlayers: data.maxPlayers,
+                        price: data.price,
+                        confirmationDeadlineHours: data.confirmationDeadlineHours ?? 48,
+                        createdAt: data.createdAt,
+                        registrations: data.registrations.map(r => ({
+                            status: r.status,
+                            displayName: r.users?.displayName ?? 'Jogador',
+                        })),
+                    }}
+                    onClose={() => setIsStatusShareOpen(false)}
                 />
             )}
         </div>

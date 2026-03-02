@@ -1,6 +1,6 @@
 import { createLogger } from '@/lib/logger'
 import { useState } from 'react'
-import { ArrowLeft, Calendar, Users, CircleDollarSign, FileText, Loader2, ArrowRight } from 'lucide-react'
+import { ArrowLeft, Calendar, Users, CircleDollarSign, FileText, Loader2, ArrowRight, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 
@@ -70,6 +70,7 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
     const [scheduledAt, setScheduledAt] = useState('')
     const [maxPlayers, setMaxPlayers] = useState('')
     const [priceRaw, setPriceRaw] = useState('') // raw digit string, e.g. "2000" = R$20,00
+    const [confirmationHours, setConfirmationHours] = useState('48')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
@@ -97,6 +98,7 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
             scheduledAt: new Date(scheduledAt).toISOString(),
             maxPlayers: parseInt(maxPlayers),
             price: parseCurrencyToNumber(priceRaw),
+            confirmationDeadlineHours: parseInt(confirmationHours) || 48,
             status: 'OPEN',
         })
 
@@ -179,6 +181,27 @@ export default function CreateMatch({ session, groupId, onBack, onCreated }: Pro
                             onChange={handlePriceChange}
                             className="flex-1 bg-transparent text-base font-semibold text-primary-text placeholder:text-gray-400 outline-none"
                         />
+                    </div>
+                </FieldCard>
+
+                {/* Prazo de confirmação */}
+                <FieldCard icon={<Clock size={15} />} label="Prazo de confirmação" hint="Tempo que jogadores têm para pagar após reservar">
+                    <div className="flex items-center gap-2">
+                        {[24, 48, 72].map((h) => (
+                            <button
+                                key={h}
+                                type="button"
+                                onClick={() => setConfirmationHours(String(h))}
+                                className={[
+                                    'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 border',
+                                    confirmationHours === String(h)
+                                        ? 'bg-brand-green text-white border-brand-green shadow-sm shadow-brand-green/20'
+                                        : 'bg-background text-secondary-text border-gray-200 hover:border-gray-300',
+                                ].join(' ')}
+                            >
+                                {h}h
+                            </button>
+                        ))}
                     </div>
                 </FieldCard>
 

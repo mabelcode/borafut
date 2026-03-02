@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, type ElementType } from 'react'
 import { Loader2, Medal, UserRoundMinus, Trophy, UserRound, Users, Calendar } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useUserProfileData, type ProfileGroup, type ProfileMatch } from '@/hooks/useUserProfileData'
@@ -27,7 +27,7 @@ export default function UserProfile({ onBack, onViewMatch }: Props) {
         window.history.replaceState({}, '', url.toString())
     }, [activeTab])
 
-    const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+    const tabs: { id: Tab; label: string; icon: ElementType }[] = [
         { id: 'profile', label: 'Perfil', icon: UserRound },
         { id: 'groups', label: 'Grupos', icon: Users },
         { id: 'history', label: 'Histórico', icon: Calendar },

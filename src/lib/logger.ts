@@ -63,8 +63,29 @@ class Logger {
         if (this.shouldLog('ERROR')) {
             console.error(this.formatMessage('ERROR', message), error, ...args)
             Sentry.logger.error(message, { context: this.name, error: String(error) })
-            Sentry.captureException(error || new Error(message), {
-                extra: { context: this.name, message, args },
+
+            let exceptionToCapture: Error;
+
+            if (error instanceof Error) {
+                exceptionToCapture = error;
+            } else if (error && typeof error === 'object') {
+                // Parse Supabase PostgrestError or other plain objects
+                const msg = (error as any).message || message;
+                exceptionToCapture = new Error(String(msg));
+                exceptionToCapture.name = (error as any).name || 'ObjectException';
+            } else if (error !== undefined && error !== null) {
+                exceptionToCapture = new Error(String(error));
+            } else {
+                exceptionToCapture = new Error(message);
+            }
+
+            Sentry.captureException(exceptionToCapture, {
+                extra: {
+                    context: this.name,
+                    originalMessage: message,
+                    args,
+                    rawError: error
+                },
             })
         }
     }

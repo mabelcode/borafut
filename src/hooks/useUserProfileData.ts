@@ -17,6 +17,7 @@ export interface ProfileMatch {
     scheduledAt: string
     groupId: string
     groupName: string
+    mvps?: { displayName: string | null; avatarUrl: string | null }[]
 }
 
 interface GroupMemberRow {
@@ -25,17 +26,7 @@ interface GroupMemberRow {
     groups: { id: string; name: string } | null
 }
 
-interface MatchRegistrationRow {
-    id: string
-    matches: {
-        id: string
-        title: string | null
-        scheduledAt: string
-        groupId: string
-        status: string
-        groups: { name: string } | null
-    } | null
-}
+
 
 export function useUserProfileData(userId?: string) {
     const queryClient = useQueryClient()
@@ -77,7 +68,7 @@ export function useUserProfileData(userId?: string) {
                 .from('match_registrations')
                 .select(`
                     id,
-                    matches!inner(id, title, scheduledAt, groupId, status, groups(name))
+                    matches!inner(id, title, scheduledAt, groupId, status, groups(name), match_mvps(users(displayName, avatarUrl)))
                 `)
                 .eq('userId', userId)
                 .eq('status', 'CONFIRMED')
@@ -88,13 +79,18 @@ export function useUserProfileData(userId?: string) {
 
             const formattedHistory: ProfileMatch[] = (matchData || [])
                 .map((reg: unknown) => {
-                    const row = reg as MatchRegistrationRow
+                    const row = reg as any
+                    const matchMvps = row.matches?.match_mvps || []
                     return {
                         id: row.matches?.id ?? '',
                         title: row.matches?.title ?? null,
                         scheduledAt: row.matches?.scheduledAt ?? '',
                         groupId: row.matches?.groupId ?? '',
-                        groupName: row.matches?.groups?.name ?? 'Unknown Group'
+                        groupName: row.matches?.groups?.name ?? 'Unknown Group',
+                        mvps: matchMvps.map((mvp: any) => ({
+                            displayName: mvp.users?.displayName ?? 'Jogador',
+                            avatarUrl: mvp.users?.avatarUrl ?? null
+                        }))
                     }
                 })
 

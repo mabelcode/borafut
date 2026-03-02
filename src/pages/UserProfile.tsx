@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function UserProfile({ onBack, onViewMatch }: Props) {
-    const { user, authUser, refetch, updateProfile } = useCurrentUser()
+    const { user, authUser, loading: loadingUser, refetch, updateProfile } = useCurrentUser()
     const { groups, history, loading: loadingData, error, leaveGroup } = useUserProfileData(user?.id)
 
     const [activeTab, setActiveTab] = useState<Tab>(() => {
@@ -98,7 +98,7 @@ export default function UserProfile({ onBack, onViewMatch }: Props) {
         }
     }
 
-    if (loadingData) {
+    if (loadingUser || loadingData) {
         return (
             <div className="flex justify-center items-center h-screen bg-background">
                 <Loader2 size={32} className="animate-spin text-brand-green" />

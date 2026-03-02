@@ -283,8 +283,10 @@ export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props
             const urlParams = new URLSearchParams(window.location.search)
             if (urlParams.get('evaluate') === 'true') {
                 setIsEvaluationOpen(true)
-                // Optionally clean up the URL to avoid reopening on refresh
-                window.history.replaceState({}, '', window.location.pathname)
+                // Clean up only the evaluate param, preserving others and hash
+                urlParams.delete('evaluate')
+                const newSearch = urlParams.toString()
+                window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash)
             }
         }
     }, [data?.status, data?.myRegistration?.status, fetchMyEvaluations])

@@ -87,9 +87,19 @@ describe('useUserProfileData Hook', () => {
 
         vi.mocked(supabase.from).mockImplementation((table: string) => {
             if (table === 'group_members') {
-                return { delete: mockDelete } as any
+                return {
+                    delete: mockDelete,
+                    select: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    order: vi.fn().mockResolvedValue({ data: [], error: null })
+                } as any
             }
-            return { select: vi.fn().mockReturnThis() } as any
+            return {
+                select: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                order: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockResolvedValue({ data: [], error: null })
+            } as any
         })
         mockDelete.mockReturnValue({ eq: mockEq1 })
         mockEq1.mockReturnValue({ eq: mockEq2 })

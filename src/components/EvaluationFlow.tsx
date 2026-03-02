@@ -86,7 +86,7 @@ export default function EvaluationFlow({ matchId, currentUserId, confirmedRegist
                         <h3 className="text-xl font-bold text-primary-text">Avaliar Jogadores</h3>
                         <p className="text-xs text-secondary-text mt-1">Como foi o desempenho do time?</p>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-gray-50 rounded-full text-secondary-text hover:bg-gray-100 transition-colors">
+                    <button onClick={onClose} aria-label="Fechar" className="p-2 bg-gray-50 rounded-full text-secondary-text hover:bg-gray-100 transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -130,6 +130,8 @@ export default function EvaluationFlow({ matchId, currentUserId, confirmedRegist
                                                     key={star}
                                                     type="button"
                                                     onClick={() => handleStarClick(player.userId, star)}
+                                                    aria-label={`Avaliar ${playerName} com ${star} ${star === 1 ? 'estrela' : 'estrelas'}`}
+                                                    title={`${star} ${star === 1 ? 'estrela' : 'estrelas'}`}
                                                     className={`p-1.5 rounded-md transition-all active:scale-90 ${star <= currentRating
                                                         ? 'text-amber-400 hover:text-amber-500 hover:bg-amber-50'
                                                         : 'text-gray-300 hover:text-gray-400 hover:bg-gray-200'

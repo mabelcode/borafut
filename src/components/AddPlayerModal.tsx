@@ -103,6 +103,7 @@ export default function AddPlayerModal({ matchId, groupId, existingRegistrations
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="Fechar"
                         className="p-2.5 bg-gray-50 rounded-full text-secondary-text hover:bg-gray-100 transition-all active:scale-95 shadow-sm"
                     >
                         <X size={20} />

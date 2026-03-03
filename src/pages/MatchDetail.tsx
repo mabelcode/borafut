@@ -1,5 +1,5 @@
 import { createLogger } from '@/lib/logger'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
@@ -56,6 +56,16 @@ function PixQRCode({
 }) {
     const [copiedKey, setCopiedKey] = useState(false)
     const [copiedPayload, setCopiedPayload] = useState(false)
+    const copyKeyTimerRef = useRef<number | null>(null)
+    const copyPayloadTimerRef = useRef<number | null>(null)
+
+    // Cleanup timers on unmount
+    useEffect(() => {
+        return () => {
+            if (copyKeyTimerRef.current) clearTimeout(copyKeyTimerRef.current)
+            if (copyPayloadTimerRef.current) clearTimeout(copyPayloadTimerRef.current)
+        }
+    }, [])
 
     const payloadResult = useMemo(() => {
         try {
@@ -78,7 +88,8 @@ function PixQRCode({
         try {
             await navigator.clipboard.writeText(pixKey)
             setCopiedKey(true)
-            setTimeout(() => setCopiedKey(false), 2000)
+            if (copyKeyTimerRef.current) clearTimeout(copyKeyTimerRef.current)
+            copyKeyTimerRef.current = window.setTimeout(() => setCopiedKey(false), 2000)
         } catch (err) {
             logger.error('Erro ao copiar chave Pix', err)
         }
@@ -89,7 +100,8 @@ function PixQRCode({
         try {
             await navigator.clipboard.writeText(payloadResult.payload)
             setCopiedPayload(true)
-            setTimeout(() => setCopiedPayload(false), 2000)
+            if (copyPayloadTimerRef.current) clearTimeout(copyPayloadTimerRef.current)
+            copyPayloadTimerRef.current = window.setTimeout(() => setCopiedPayload(false), 2000)
         } catch (err) {
             logger.error('Erro ao copiar código Pix', err)
         }
@@ -118,6 +130,7 @@ function PixQRCode({
             <div className="w-full max-w-[280px] flex flex-col gap-2">
                 {/* Copy Pix Key */}
                 <button
+                    type="button"
                     onClick={handleCopyKey}
                     className={[
                         'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97]',
@@ -136,6 +149,7 @@ function PixQRCode({
 
                 {/* Copy full Pix Copia e Cola payload */}
                 <button
+                    type="button"
                     onClick={handleCopyPayload}
                     className={[
                         'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97]',

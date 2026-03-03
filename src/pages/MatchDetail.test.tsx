@@ -5,6 +5,7 @@ import { useMatchDetail } from '@/hooks/useMatchDetail'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 import { useMatchMvp } from '@/hooks/useMatchMvp'
 import { useDraftState } from '@/hooks/useDraftState'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 vi.mock('@/hooks/useMatchDetail', () => ({
     useMatchDetail: vi.fn()
@@ -20,6 +21,10 @@ vi.mock('@/hooks/useMatchMvp', () => ({
 
 vi.mock('@/hooks/useDraftState', () => ({
     useDraftState: vi.fn()
+}))
+
+vi.mock('@/hooks/useCurrentUser', () => ({
+    useCurrentUser: vi.fn()
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -45,6 +50,7 @@ const mockMatchData = {
     price: 20,
     status: 'OPEN',
     managerId: 'admin-1',
+    groupId: 'g1',
     myRegistration: null,
     registrations: [
         { id: 'r1', userId: 'u1', status: 'CONFIRMED', users: { displayName: 'Marcos', mainPosition: 'ATTACK', globalScore: 4.5 } }
@@ -87,10 +93,16 @@ describe('MatchDetail Page', () => {
                 selectedPlayer: null,
                 handlePlayerClick: vi.fn()
             })
+
+            // Default: not admin of any group
+            ; (useCurrentUser as any).mockReturnValue({
+                user: { isSuperAdmin: false },
+                groups: [{ groupId: 'g1', role: 'PLAYER' }],
+            })
     })
 
     it('renders match information correctly', async () => {
-        render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={vi.fn()} />)
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
 
         expect(await screen.findByText('Test Match')).toBeInTheDocument()
 
@@ -119,18 +131,25 @@ describe('MatchDetail Page', () => {
     })
 
     it('shows admin actions only to admins', async () => {
-        const { rerender } = render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={vi.fn()} />)
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
         await waitFor(() => expect(screen.queryByText('CONFIGURAR E SORTEAR TIMES')).not.toBeInTheDocument())
 
-        rerender(<MatchDetail matchId="m1" session={mockSession} isAdmin={true} onBack={vi.fn()} />)
+            // Now mock as admin of THIS group
+            ; (useCurrentUser as any).mockReturnValue({
+                user: { isSuperAdmin: false },
+                groups: [{ groupId: 'g1', role: 'ADMIN' }],
+            })
+        // Force re-render by re-rendering with fresh component
+        const { unmount } = render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
         expect(await screen.findByText('CONFIGURAR E SORTEAR TIMES')).toBeInTheDocument()
+        unmount()
     })
 
     it('shows evaluation button for finished matches where user participated', async () => {
         const finishedMatch = { ...mockMatchData, status: 'FINISHED', myRegistration: { status: 'CONFIRMED' } }
             ; (useMatchDetail as any).mockReturnValue({ data: finishedMatch, loading: false })
 
-        render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={vi.fn()} />)
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
 
         expect(await screen.findByText('AVALIAR JOGADORES')).toBeInTheDocument()
     })
@@ -139,7 +158,12 @@ describe('MatchDetail Page', () => {
         const finishedMatch = { ...mockMatchData, status: 'FINISHED' }
             ; (useMatchDetail as any).mockReturnValue({ data: finishedMatch, loading: false })
 
-        render(<MatchDetail matchId="m1" session={mockSession} isAdmin={true} onBack={vi.fn()} />)
+            // Mock as admin of this group for MVP panel
+            ; (useCurrentUser as any).mockReturnValue({
+                user: { isSuperAdmin: false },
+                groups: [{ groupId: 'g1', role: 'ADMIN' }],
+            })
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
 
         expect(await screen.findByText(/Craque da Partida/i)).toBeInTheDocument()
         expect(screen.getByText('CALCULAR CRAQUE(S)')).toBeInTheDocument()
@@ -157,7 +181,7 @@ describe('MatchDetail Page', () => {
         }
             ; (useMatchDetail as any).mockReturnValue({ data: finishedMatch, loading: false })
 
-        render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={vi.fn()} />)
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
 
         const evalBtn = await screen.findByText('AVALIAR JOGADORES')
         fireEvent.click(evalBtn)
@@ -168,7 +192,7 @@ describe('MatchDetail Page', () => {
 
     it('handles back navigation', async () => {
         const onBackMock = vi.fn()
-        render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={onBackMock} />)
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={onBackMock} />)
 
         const backBtn = await screen.findByLabelText('Voltar')
         fireEvent.click(backBtn)
@@ -194,7 +218,7 @@ describe('MatchDetail Page', () => {
                 single: vi.fn().mockResolvedValue({ data: { pixKey: 'admin@pix.com' }, error: null })
             })
 
-        render(<MatchDetail matchId="m1" session={mockSession} isAdmin={false} onBack={vi.fn()} />)
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
 
         const registerBtn = await screen.findByText('Tô Dentro!')
         fireEvent.click(registerBtn)

@@ -308,7 +308,6 @@ export function AppInner({
         <MatchDetail
           matchId={selectedMatchId}
           session={session}
-          isAdmin={isAdminInAnyGroup}
           onBack={() => setAppState('home')}
         />
       )}

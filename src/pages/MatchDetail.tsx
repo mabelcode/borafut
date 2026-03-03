@@ -20,6 +20,7 @@ import MvpCard from '@/components/MvpCard'
 import MatchStatusShare from '@/components/MatchStatusShare'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 import { useMatchMvp } from '@/hooks/useMatchMvp'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 const logger = createLogger('MatchDetail')
 
@@ -321,12 +322,19 @@ function CTAButton({
 interface Props {
     matchId: string
     session: Session
-    isAdmin: boolean
     onBack: () => void
 }
 
-export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props) {
+export default function MatchDetail({ matchId, session, onBack }: Props) {
     const { data, loading, error, refetch } = useMatchDetail(matchId)
+    const { user, groups: userGroups } = useCurrentUser()
+
+    // Derive admin status from THIS match's group, not from any group
+    const isAdmin = useMemo(() => {
+        if (!data) return false
+        if (user?.isSuperAdmin) return true
+        return userGroups.some(g => g.groupId === data.groupId && g.role === 'ADMIN')
+    }, [data, user, userGroups])
     const [adminPixKey, setAdminPixKey] = useState<string | null>(null)
     const [pixLoaded, setPixLoaded] = useState(false)
 

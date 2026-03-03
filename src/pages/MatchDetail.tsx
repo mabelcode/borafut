@@ -1,9 +1,9 @@
 import { createLogger } from '@/lib/logger'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
-    RefreshCw, X, Star, Trophy, Share2
+    RefreshCw, X, Star, Trophy, Share2, Copy, Check
 } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { QrCodePix } from 'qrcode-pix'
@@ -20,6 +20,7 @@ import MvpCard from '@/components/MvpCard'
 import MatchStatusShare from '@/components/MatchStatusShare'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 import { useMatchMvp } from '@/hooks/useMatchMvp'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 const logger = createLogger('MatchDetail')
 
@@ -53,6 +54,19 @@ function PixQRCode({
     playerName: string
     matchTitle: string
 }) {
+    const [copiedKey, setCopiedKey] = useState(false)
+    const [copiedPayload, setCopiedPayload] = useState(false)
+    const copyKeyTimerRef = useRef<number | null>(null)
+    const copyPayloadTimerRef = useRef<number | null>(null)
+
+    // Cleanup timers on unmount
+    useEffect(() => {
+        return () => {
+            if (copyKeyTimerRef.current) clearTimeout(copyKeyTimerRef.current)
+            if (copyPayloadTimerRef.current) clearTimeout(copyPayloadTimerRef.current)
+        }
+    }, [])
+
     const payloadResult = useMemo(() => {
         try {
             const pix = QrCodePix({
@@ -70,6 +84,29 @@ function PixQRCode({
         }
     }, [pixKey, amount, playerName, matchTitle])
 
+    async function handleCopyKey() {
+        try {
+            await navigator.clipboard.writeText(pixKey)
+            setCopiedKey(true)
+            if (copyKeyTimerRef.current) clearTimeout(copyKeyTimerRef.current)
+            copyKeyTimerRef.current = window.setTimeout(() => setCopiedKey(false), 2000)
+        } catch (err) {
+            logger.error('Erro ao copiar chave Pix', err)
+        }
+    }
+
+    async function handleCopyPayload() {
+        if (!payloadResult.payload) return
+        try {
+            await navigator.clipboard.writeText(payloadResult.payload)
+            setCopiedPayload(true)
+            if (copyPayloadTimerRef.current) clearTimeout(copyPayloadTimerRef.current)
+            copyPayloadTimerRef.current = window.setTimeout(() => setCopiedPayload(false), 2000)
+        } catch (err) {
+            logger.error('Erro ao copiar código Pix', err)
+        }
+    }
+
     if (payloadResult.err) {
         return (
             <p className="text-xs text-brand-red text-center">
@@ -81,16 +118,57 @@ function PixQRCode({
     if (!payloadResult.payload) return <Loader2 size={20} className="animate-spin text-secondary-text mx-auto" />
 
     return (
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-4">
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                 <QRCodeSVG value={payloadResult.payload} size={180} level="M" />
             </div>
-            <p className="text-[11px] text-secondary-text text-center leading-relaxed max-w-[220px]">
+            <p className="text-[11px] text-secondary-text text-center leading-relaxed max-w-[240px]">
                 Escaneie com qualquer app de banco para pagar {formatCurrency(amount)} via Pix.
-                Use seu nome como descrição para facilitar a identificação.
             </p>
-            <p className="font-mono text-[10px] text-secondary-text break-all text-center px-2 select-all">
-                Chave: {pixKey}
+
+            {/* ── Copy buttons ─────────────────────────────────── */}
+            <div className="w-full max-w-[280px] flex flex-col gap-2">
+                {/* Copy Pix Key */}
+                <button
+                    type="button"
+                    onClick={handleCopyKey}
+                    className={[
+                        'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97]',
+                        copiedKey
+                            ? 'bg-brand-green/10 text-brand-green border border-brand-green/30'
+                            : 'bg-gray-50 text-primary-text border border-gray-200 hover:border-brand-green/40 hover:bg-brand-green/5',
+                    ].join(' ')}
+                    aria-label="Copiar chave Pix"
+                >
+                    {copiedKey ? (
+                        <><Check size={15} className="shrink-0" /> Copiado!</>
+                    ) : (
+                        <><Copy size={15} className="shrink-0" /> Copiar Chave Pix</>
+                    )}
+                </button>
+
+                {/* Copy full Pix Copia e Cola payload */}
+                <button
+                    type="button"
+                    onClick={handleCopyPayload}
+                    className={[
+                        'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97]',
+                        copiedPayload
+                            ? 'bg-brand-green text-white shadow-sm shadow-brand-green/20'
+                            : 'bg-brand-green text-white shadow-sm shadow-brand-green/20 hover:brightness-105',
+                    ].join(' ')}
+                    aria-label="Copiar código Pix Copia e Cola"
+                >
+                    {copiedPayload ? (
+                        <><Check size={15} className="shrink-0" /> Código copiado!</>
+                    ) : (
+                        <><Copy size={15} className="shrink-0" /> Pix Copia e Cola</>
+                    )}
+                </button>
+            </div>
+
+            <p className="font-mono text-[10px] text-secondary-text/70 break-all text-center px-2 select-all max-w-[280px]">
+                {pixKey}
             </p>
         </div>
     )
@@ -258,12 +336,19 @@ function CTAButton({
 interface Props {
     matchId: string
     session: Session
-    isAdmin: boolean
     onBack: () => void
 }
 
-export default function MatchDetail({ matchId, session, isAdmin, onBack }: Props) {
+export default function MatchDetail({ matchId, session, onBack }: Props) {
     const { data, loading, error, refetch } = useMatchDetail(matchId)
+    const { user, groups: userGroups } = useCurrentUser()
+
+    // Derive admin status from THIS match's group, not from any group
+    const isAdmin = useMemo(() => {
+        if (!data) return false
+        if (user?.isSuperAdmin) return true
+        return userGroups.some(g => g.groupId === data.groupId && g.role === 'ADMIN')
+    }, [data, user, userGroups])
     const [adminPixKey, setAdminPixKey] = useState<string | null>(null)
     const [pixLoaded, setPixLoaded] = useState(false)
 

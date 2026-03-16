@@ -41,38 +41,53 @@ export function useCurrentUser() {
             const { data: { user: authUser } } = await supabase.auth.getUser()
             if (!authUser) return { user: null, groups: [], authUser: null }
 
-            const [profileRes, membershipsRes] = await Promise.all([
-                supabase.from('users').select('*').eq('id', authUser.id).maybeSingle(),
-                supabase
+            const profileRes = await supabase.from('users').select('*').eq('id', authUser.id).maybeSingle()
+            if (profileRes.error) throw profileRes.error
+            const userProfile = profileRes.data as UserProfile | null
+
+            let memberships: GroupMembership[] = []
+
+            if (userProfile?.isSuperAdmin) {
+                const groupsRes = await supabase.from('groups').select('id, name, inviteToken, inviteExpiresAt')
+                if (groupsRes.error) throw groupsRes.error
+                memberships = (groupsRes.data || []).map(g => ({
+                    groupId: g.id,
+                    groupName: g.name,
+                    role: 'ADMIN',
+                    subscriptionType: 'AVULSO',
+                    inviteToken: g.inviteToken,
+                    inviteExpiresAt: g.inviteExpiresAt,
+                }))
+            } else {
+                const membershipsRes = await supabase
                     .from('group_members')
                     .select('role, subscriptionType, groups(id, name, inviteToken, inviteExpiresAt)')
-                    .eq('userId', authUser.id),
-            ])
+                    .eq('userId', authUser.id)
 
-            if (profileRes.error) throw profileRes.error
-            if (membershipsRes.error) throw membershipsRes.error
+                if (membershipsRes.error) throw membershipsRes.error
 
-            const rawMemberships = (membershipsRes.data ?? []) as unknown as {
-                role: 'ADMIN' | 'PLAYER'
-                subscriptionType: 'MENSALISTA' | 'AVULSO' | null
-                groups: {
-                    id: string
-                    name: string
-                    inviteToken: string
-                    inviteExpiresAt: string | null
-                } | null
-            }[]
+                const rawMemberships = (membershipsRes.data ?? []) as unknown as {
+                    role: 'ADMIN' | 'PLAYER'
+                    subscriptionType: 'MENSALISTA' | 'AVULSO' | null
+                    groups: {
+                        id: string
+                        name: string
+                        inviteToken: string
+                        inviteExpiresAt: string | null
+                    } | null
+                }[]
 
-            const memberships: GroupMembership[] = rawMemberships
-                .filter(m => m.groups !== null)
-                .map(m => ({
-                    groupId: m.groups!.id,
-                    groupName: m.groups!.name,
-                    role: m.role,
-                    subscriptionType: m.subscriptionType ?? 'AVULSO',
-                    inviteToken: m.groups!.inviteToken,
-                    inviteExpiresAt: m.groups!.inviteExpiresAt,
-                }))
+                memberships = rawMemberships
+                    .filter(m => m.groups !== null)
+                    .map(m => ({
+                        groupId: m.groups!.id,
+                        groupName: m.groups!.name,
+                        role: m.role,
+                        subscriptionType: m.subscriptionType ?? 'AVULSO',
+                        inviteToken: m.groups!.inviteToken,
+                        inviteExpiresAt: m.groups!.inviteExpiresAt,
+                    }))
+            }
 
             return {
                 user: (profileRes.data ?? null) as UserProfile | null,

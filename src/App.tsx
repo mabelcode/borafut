@@ -324,6 +324,7 @@ export function AppInner({
         (selectedGroupId || activeAdminGroupId) ? (
           <GroupAdmin
             groupId={(selectedGroupId || activeAdminGroupId)!}
+            adminGroups={adminGroups}
             onBack={() => setAppState('home')}
           />
         ) : user?.isSuperAdmin ? (

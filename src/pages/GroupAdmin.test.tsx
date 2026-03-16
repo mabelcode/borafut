@@ -27,14 +27,14 @@ describe('GroupAdmin Component', () => {
     })
 
     it('renders "Partidas" tab by default', () => {
-        render(<GroupAdmin groupId={mockGroupId} onBack={mockOnBack} />)
+        render(<GroupAdmin groupId={mockGroupId} adminGroups={[]} onBack={mockOnBack} />)
 
         expect(screen.getByTestId('matches-tab')).toBeInTheDocument()
         expect(screen.getByText('Partidas')).toBeInTheDocument()
     })
 
     it('switches to "Financeiro" tab when clicked', () => {
-        render(<GroupAdmin groupId={mockGroupId} onBack={mockOnBack} />)
+        render(<GroupAdmin groupId={mockGroupId} adminGroups={[]} onBack={mockOnBack} />)
 
         fireEvent.click(screen.getByText('Financeiro'))
 
@@ -43,7 +43,7 @@ describe('GroupAdmin Component', () => {
     })
 
     it('switches to "Membros" tab when clicked', () => {
-        render(<GroupAdmin groupId={mockGroupId} onBack={mockOnBack} />)
+        render(<GroupAdmin groupId={mockGroupId} adminGroups={[]} onBack={mockOnBack} />)
 
         fireEvent.click(screen.getByText('Membros'))
 
@@ -51,7 +51,7 @@ describe('GroupAdmin Component', () => {
     })
 
     it('switches to "Ajustes" tab when clicked', () => {
-        render(<GroupAdmin groupId={mockGroupId} onBack={mockOnBack} />)
+        render(<GroupAdmin groupId={mockGroupId} adminGroups={[]} onBack={mockOnBack} />)
 
         fireEvent.click(screen.getByText('Ajustes'))
 
@@ -64,13 +64,13 @@ describe('GroupAdmin Component', () => {
         url.searchParams.set('tab', 'finance')
         window.history.replaceState({}, '', url.toString())
 
-        render(<GroupAdmin groupId={mockGroupId} onBack={mockOnBack} />)
+        render(<GroupAdmin groupId={mockGroupId} adminGroups={[]} onBack={mockOnBack} />)
 
         expect(screen.getByTestId('finance-tab')).toBeInTheDocument()
     })
 
     it('updates URL search params when tab changes', () => {
-        render(<GroupAdmin groupId={mockGroupId} onBack={mockOnBack} />)
+        render(<GroupAdmin groupId={mockGroupId} adminGroups={[]} onBack={mockOnBack} />)
 
         fireEvent.click(screen.getByText('Ajustes'))
 

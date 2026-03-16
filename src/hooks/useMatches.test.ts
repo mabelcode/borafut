@@ -34,19 +34,23 @@ describe('useMatches Hook', () => {
         })
     })
 
-    it('filters by groupId even if it is an empty string', async () => {
-        const mockEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    it('does not execute query if groupId is an empty string', async () => {
+        const mockEq = vi.fn().mockReturnThis()
+        const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null })
+
             ; (supabase.from as any).mockReturnValue({
                 select: vi.fn().mockReturnThis(),
-                order: vi.fn().mockReturnThis(),
+                order: mockOrder,
                 eq: mockEq
             })
 
-        renderHook(() => useMatches(''))
+        const { result } = renderHook(() => useMatches(''))
 
+        // Espera rodar o hook, e verifica que não foi chamado (enabled: false evita a execução da query)
         await waitFor(() => {
-            expect(mockEq).toHaveBeenCalledWith('groupId', '')
+            expect(result.current.loading).toBe(false) // em v5, query desativada começa com loading falso
         })
+        expect(mockEq).not.toHaveBeenCalled()
     })
 
     it('does not filter by groupId if it is undefined', async () => {

@@ -168,9 +168,23 @@ BEGIN
         END IF;
     END IF;
 
-    -- Inserir inscrição
     INSERT INTO public.match_registrations ("matchId", "userId", status)
     VALUES (p_match_id, v_user_id, v_final_status);
+
+    -- Auditoria
+    INSERT INTO public.audit_log ("actorId", action, "targetId", "targetType", metadata)
+    VALUES (
+        v_user_id,
+        'MATCH_REGISTERED',
+        p_match_id,
+        'match',
+        jsonb_build_object(
+            'status', v_final_status,
+            'subscriptionType', v_subscription_type,
+            'displacedRegistrationId', v_displaced_id,
+            'displacedUserId', v_displaced_user_id
+        )
+    );
 
     -- Retornar resultado
     RETURN jsonb_build_object(

@@ -61,7 +61,7 @@ export function useMatchDetail(matchId: string) {
             // Fetch subscription types for all registered users in this group
             const groupId = matchRes.data.groupId
             const userIds = (regRes.data ?? []).map((r: any) => r.userId).filter(Boolean)
-            let subscriptionMap: Record<string, string> = {}
+            const subscriptionMap: Record<string, string> = {}
             if (userIds.length > 0) {
                 const { data: membersData } = await supabase
                     .from('group_members')

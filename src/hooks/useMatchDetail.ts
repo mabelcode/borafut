@@ -28,6 +28,11 @@ export interface MatchDetailData {
     createdAt: string
     registrations: Registration[]
     myRegistration: Registration | null
+    group: {
+        name: string
+        inviteToken: string
+        inviteExpiresAt: string | null
+    }
 }
 
 export function useMatchDetail(matchId: string) {
@@ -41,7 +46,7 @@ export function useMatchDetail(matchId: string) {
             if (!authUser) throw new Error('User not authenticated')
 
             const [matchRes, regRes] = await Promise.all([
-                supabase.from('matches').select('*').eq('id', matchId).single(),
+                supabase.from('matches').select('*, groups(name, inviteToken, inviteExpiresAt)').eq('id', matchId).single(),
                 supabase
                     .from('match_registrations')
                     .select('id, userId, status, teamNumber, users(displayName, mainPosition, globalScore, avatarUrl)')
@@ -74,7 +79,13 @@ export function useMatchDetail(matchId: string) {
             }))
             const myRegistration = registrations.find(r => r.userId === authUser.id) ?? null
 
-            return { ...matchRes.data, registrations, myRegistration } as MatchDetailData
+            const { groups, ...matchData } = matchRes.data;
+            return {
+                ...matchData,
+                registrations,
+                myRegistration,
+                group: groups
+            } as MatchDetailData
         }
     })
 

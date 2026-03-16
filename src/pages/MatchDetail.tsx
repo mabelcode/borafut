@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
-    RefreshCw, X, Star, Trophy, Share2, Copy, Check, Crown
+    RefreshCw, X, Star, Trophy, Share2, Copy, Check, Crown, Link2
 } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { QrCodePix } from 'qrcode-pix'
@@ -18,6 +18,7 @@ import AddPlayerModal from '@/components/AddPlayerModal'
 import PlayerAvatar from '@/components/PlayerAvatar'
 import MvpCard from '@/components/MvpCard'
 import MatchStatusShare from '@/components/MatchStatusShare'
+import GroupInviteShare from '@/components/GroupInviteShare'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 import { useMatchMvp } from '@/hooks/useMatchMvp'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -384,6 +385,7 @@ export default function MatchDetail({ matchId, session, onBack }: Props) {
     const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
     const [isMvpCardOpen, setIsMvpCardOpen] = useState(false)
     const [isStatusShareOpen, setIsStatusShareOpen] = useState(false)
+    const [isInviteShareOpen, setIsInviteShareOpen] = useState(false)
     const [noEvaluationsMsg, setNoEvaluationsMsg] = useState(false)
     const { hasEvaluated: hasAlreadyEvaluated, fetchMyEvaluations } = useMatchEvaluations(matchId, session.user.id)
     const { mvps, loading: mvpLoading, computeMvps, isComputing, evaluatorCount } = useMatchMvp(matchId, data?.status)
@@ -697,6 +699,17 @@ export default function MatchDetail({ matchId, session, onBack }: Props) {
                         </button>
                     )}
 
+                    {/* Todos: Convidar Amigos */}
+                    {data.status === 'OPEN' && (
+                        <button
+                            onClick={() => setIsInviteShareOpen(true)}
+                            className="w-full py-3 rounded-2xl border border-brand-green/20 text-brand-green font-semibold text-sm flex items-center justify-center gap-2 hover:bg-brand-green/5 hover:border-brand-green/30 active:scale-[0.98] transition-all"
+                        >
+                            <Link2 size={16} />
+                            Convidar Amigo
+                        </button>
+                    )}
+
                     {/* Admin: pending confirmations */}
                     {isAdmin && pendingReserved.length > 0 && (
                         <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex flex-col gap-2">
@@ -947,6 +960,15 @@ export default function MatchDetail({ matchId, session, onBack }: Props) {
                         })),
                     }}
                     onClose={() => setIsStatusShareOpen(false)}
+                />
+            )}
+
+            {isInviteShareOpen && data?.group && (
+                <GroupInviteShare
+                    groupName={data.group.name}
+                    inviteToken={data.group.inviteToken}
+                    inviteExpiresAt={data.group.inviteExpiresAt}
+                    onClose={() => setIsInviteShareOpen(false)}
                 />
             )}
         </div>

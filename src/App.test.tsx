@@ -39,7 +39,7 @@ describe('App Routing Security', () => {
             // Default mock for a regular player
             ; (useCurrentUser as any).mockReturnValue({
                 user: { id: 'user-123', isSuperAdmin: false },
-                groups: [{ groupId: 'g1', role: 'PLAYER' }],
+                groups: [{ groupId: 'g1', role: 'PLAYER', subscriptionType: 'AVULSO' }],
                 isAdminInAnyGroup: false,
                 adminGroups: [],
                 loading: false,
@@ -119,7 +119,7 @@ describe('App Routing Security', () => {
     it('allows group admin to access group-admin panel', async () => {
         ; (useCurrentUser as any).mockReturnValue({
             user: { id: 'group-admin-123', isSuperAdmin: false },
-            groups: [{ groupId: 'g1', role: 'ADMIN' }],
+            groups: [{ groupId: 'g1', role: 'ADMIN', subscriptionType: 'AVULSO' }],
             isAdminInAnyGroup: true,
             adminGroups: [{ groupId: 'g1' }],
             loading: false,

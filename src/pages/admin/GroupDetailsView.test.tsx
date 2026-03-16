@@ -18,6 +18,7 @@ const mockMembers = [
         id: 'member-1',
         userId: 'user-1',
         role: 'ADMIN',
+        subscriptionType: 'AVULSO',
         joinedAt: '2026-02-21T10:00:00Z',
         user: {
             id: 'user-1',
@@ -32,6 +33,7 @@ const mockMembers = [
         id: 'member-2',
         userId: 'user-2',
         role: 'PLAYER',
+        subscriptionType: 'AVULSO',
         joinedAt: '2026-02-22T10:00:00Z',
         user: {
             id: 'user-2',
@@ -147,5 +149,36 @@ describe('GroupDetailsView Component', () => {
 
         expect(screen.getByText('Adicionar Integrante')).toBeInTheDocument()
         expect(screen.getByPlaceholderText('Nome ou telefone do jogador...')).toBeInTheDocument()
+    })
+
+    it('renders PRO badge for mensalista members', async () => {
+        const membersWithMensalista = [
+            { ...mockMembers[0], subscriptionType: 'MENSALISTA' },
+            { ...mockMembers[1], subscriptionType: 'AVULSO' },
+        ]
+        mockSupabaseResponse(mockGroup, membersWithMensalista)
+        render(<GroupDetailsView groupId="group-1" onBack={vi.fn()} />)
+
+        await waitFor(() => {
+            expect(screen.getByText('Futebol da Quinta')).toBeInTheDocument()
+        })
+
+        // Should show PRO badge for Alice (mensalista)
+        const proBadges = screen.getAllByText('PRO')
+        expect(proBadges.length).toBe(1)
+    })
+
+    it('shows TORNAR PRO button for non-mensalista members', async () => {
+        mockSupabaseResponse()
+        ; (supabase.rpc as any).mockResolvedValue({ error: null })
+
+        render(<GroupDetailsView groupId="group-1" onBack={vi.fn()} />)
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Bob')[0]).toBeInTheDocument()
+        })
+
+        const proButtons = screen.getAllByText('TORNAR PRO')
+        expect(proButtons.length).toBeGreaterThan(0)
     })
 })

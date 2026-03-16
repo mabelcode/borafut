@@ -6,6 +6,7 @@ export interface Registration {
     userId: string
     status: 'RESERVED' | 'CONFIRMED' | 'WAITLIST'
     teamNumber: number | null
+    subscriptionType: 'MENSALISTA' | 'AVULSO'
     users: {
         displayName: string | null
         mainPosition: string | null
@@ -52,7 +53,25 @@ export function useMatchDetail(matchId: string) {
             if (matchRes.error) throw new Error(matchRes.error.message)
             if (regRes.error) throw new Error(regRes.error.message)
 
-            const registrations = (regRes.data ?? []) as unknown as Registration[]
+            // Fetch subscription types for all registered users in this group
+            const groupId = matchRes.data.groupId
+            const userIds = (regRes.data ?? []).map((r: any) => r.userId).filter(Boolean)
+            let subscriptionMap: Record<string, string> = {}
+            if (userIds.length > 0) {
+                const { data: membersData } = await supabase
+                    .from('group_members')
+                    .select('userId, subscriptionType')
+                    .eq('groupId', groupId)
+                    .in('userId', userIds)
+                for (const m of membersData ?? []) {
+                    subscriptionMap[(m as any).userId] = (m as any).subscriptionType ?? 'AVULSO'
+                }
+            }
+
+            const registrations = ((regRes.data ?? []) as unknown as Registration[]).map(r => ({
+                ...r,
+                subscriptionType: (subscriptionMap[r.userId] ?? 'AVULSO') as 'MENSALISTA' | 'AVULSO',
+            }))
             const myRegistration = registrations.find(r => r.userId === authUser.id) ?? null
 
             return { ...matchRes.data, registrations, myRegistration } as MatchDetailData

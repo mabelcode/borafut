@@ -16,6 +16,7 @@ export interface Match {
 export function useMatches(groupId?: string) {
     const { data: matches, isLoading: loading, error: queryError, refetch } = useQuery({
         queryKey: ['matches', groupId],
+        enabled: groupId !== '',
         queryFn: async () => {
             let query = supabase
                 .from('matches')

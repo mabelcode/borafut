@@ -21,6 +21,7 @@ export interface GroupMembership {
     groupId: string
     groupName: string
     role: 'ADMIN' | 'PLAYER'
+    subscriptionType: 'MENSALISTA' | 'AVULSO'
     inviteToken: string
     inviteExpiresAt: string | null
 }
@@ -44,7 +45,7 @@ export function useCurrentUser() {
                 supabase.from('users').select('*').eq('id', authUser.id).maybeSingle(),
                 supabase
                     .from('group_members')
-                    .select('role, groupId, groups(id, name, inviteToken, inviteExpiresAt)')
+                    .select('role, subscriptionType, groups(id, name, inviteToken, inviteExpiresAt)')
                     .eq('userId', authUser.id),
             ])
 
@@ -53,6 +54,7 @@ export function useCurrentUser() {
 
             const rawMemberships = (membershipsRes.data ?? []) as unknown as {
                 role: 'ADMIN' | 'PLAYER'
+                subscriptionType: 'MENSALISTA' | 'AVULSO' | null
                 groups: {
                     id: string
                     name: string
@@ -67,6 +69,7 @@ export function useCurrentUser() {
                     groupId: m.groups!.id,
                     groupName: m.groups!.name,
                     role: m.role,
+                    subscriptionType: m.subscriptionType ?? 'AVULSO',
                     inviteToken: m.groups!.inviteToken,
                     inviteExpiresAt: m.groups!.inviteExpiresAt,
                 }))

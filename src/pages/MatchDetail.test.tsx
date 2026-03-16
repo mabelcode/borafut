@@ -53,7 +53,7 @@ const mockMatchData = {
     groupId: 'g1',
     myRegistration: null,
     registrations: [
-        { id: 'r1', userId: 'u1', status: 'CONFIRMED', users: { displayName: 'Marcos', mainPosition: 'ATTACK', globalScore: 4.5 } }
+        { id: 'r1', userId: 'u1', status: 'CONFIRMED', subscriptionType: 'AVULSO', users: { displayName: 'Marcos', mainPosition: 'ATTACK', globalScore: 4.5 } }
     ]
 }
 
@@ -97,7 +97,7 @@ describe('MatchDetail Page', () => {
             // Default: not admin of any group
             ; (useCurrentUser as any).mockReturnValue({
                 user: { isSuperAdmin: false },
-                groups: [{ groupId: 'g1', role: 'PLAYER' }],
+                groups: [{ groupId: 'g1', role: 'PLAYER', subscriptionType: 'AVULSO' }],
             })
     })
 
@@ -137,7 +137,7 @@ describe('MatchDetail Page', () => {
             // Now mock as admin of THIS group
             ; (useCurrentUser as any).mockReturnValue({
                 user: { isSuperAdmin: false },
-                groups: [{ groupId: 'g1', role: 'ADMIN' }],
+                groups: [{ groupId: 'g1', role: 'ADMIN', subscriptionType: 'AVULSO' }],
             })
         // Force re-render by re-rendering with fresh component
         const { unmount } = render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
@@ -161,7 +161,7 @@ describe('MatchDetail Page', () => {
             // Mock as admin of this group for MVP panel
             ; (useCurrentUser as any).mockReturnValue({
                 user: { isSuperAdmin: false },
-                groups: [{ groupId: 'g1', role: 'ADMIN' }],
+                groups: [{ groupId: 'g1', role: 'ADMIN', subscriptionType: 'AVULSO' }],
             })
         render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
 
@@ -176,7 +176,7 @@ describe('MatchDetail Page', () => {
             myRegistration: { status: 'CONFIRMED' },
             registrations: [
                 ...mockMatchData.registrations,
-                { id: 'r2', userId: 'u2', status: 'CONFIRMED', users: { displayName: 'Player 2', mainPosition: 'DEFENSE', globalScore: 3.0 } }
+                { id: 'r2', userId: 'u2', status: 'CONFIRMED', subscriptionType: 'AVULSO', users: { displayName: 'Player 2', mainPosition: 'DEFENSE', globalScore: 3.0 } }
             ]
         }
             ; (useMatchDetail as any).mockReturnValue({ data: finishedMatch, loading: false })
@@ -228,5 +228,53 @@ describe('MatchDetail Page', () => {
             expect(refetchMock).toHaveBeenCalled()
             expect(screen.queryByText('duplicate key')).not.toBeInTheDocument()
         })
+    })
+
+    it('shows Mensalista PRO button when user is Mensalista', async () => {
+        ; (useCurrentUser as any).mockReturnValue({
+            user: { isSuperAdmin: false },
+            groups: [{ groupId: 'g1', role: 'PLAYER', subscriptionType: 'MENSALISTA' }],
+        })
+
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
+
+        expect(await screen.findByText('Tô Dentro! (PRO)')).toBeInTheDocument()
+    })
+
+    it('shows regular Tô Dentro button for Avulso', async () => {
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
+
+        expect(await screen.findByText('Tô Dentro!')).toBeInTheDocument()
+        expect(screen.queryByText('Tô Dentro! (PRO)')).not.toBeInTheDocument()
+    })
+
+    it('shows PRO badge on mensalista player in registration list', async () => {
+        const matchWithMensalista = {
+            ...mockMatchData,
+            registrations: [
+                { id: 'r1', userId: 'u1', status: 'CONFIRMED', subscriptionType: 'MENSALISTA', users: { displayName: 'Carlos PRO', mainPosition: 'ATTACK', globalScore: 4.5, avatarUrl: null } },
+                { id: 'r2', userId: 'u2', status: 'CONFIRMED', subscriptionType: 'AVULSO', users: { displayName: 'João Avulso', mainPosition: 'DEFENSE', globalScore: 3.0, avatarUrl: null } },
+            ]
+        }
+        ; (useMatchDetail as any).mockReturnValue({ data: matchWithMensalista, loading: false, error: null, refetch: vi.fn() })
+
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
+
+        // PRO badge should appear for mensalista only
+        const proBadges = await screen.findAllByText('PRO')
+        expect(proBadges.length).toBe(1)
+    })
+
+    it('shows mensalista success message when confirmed as mensalista', async () => {
+        const matchConfirmedMensalista = {
+            ...mockMatchData,
+            myRegistration: { id: 'r-me', userId: 'u1', status: 'CONFIRMED', subscriptionType: 'MENSALISTA' },
+        }
+        ; (useMatchDetail as any).mockReturnValue({ data: matchConfirmedMensalista, loading: false, error: null, refetch: vi.fn() })
+
+        render(<MatchDetail matchId="m1" session={mockSession} onBack={vi.fn()} />)
+
+        expect(await screen.findByText(/Mensalista/)).toBeInTheDocument()
+        expect(screen.getByText(/entrada garantida/)).toBeInTheDocument()
     })
 })

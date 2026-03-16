@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import {
     ArrowLeft, Calendar, Users, CircleDollarSign, CircleCheck,
     Clock, Loader2, AlertCircle, ShieldCheck, CheckCircle2,
-    RefreshCw, X, Star, Trophy, Share2, Copy, Check
+    RefreshCw, X, Star, Trophy, Share2, Copy, Check, Crown, Link2
 } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { QrCodePix } from 'qrcode-pix'
@@ -18,6 +18,7 @@ import AddPlayerModal from '@/components/AddPlayerModal'
 import PlayerAvatar from '@/components/PlayerAvatar'
 import MvpCard from '@/components/MvpCard'
 import MatchStatusShare from '@/components/MatchStatusShare'
+import GroupInviteShare from '@/components/GroupInviteShare'
 import { useMatchEvaluations } from '@/hooks/useMatchEvaluations'
 import { useMatchMvp } from '@/hooks/useMatchMvp'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -205,8 +206,13 @@ function PlayerRow({
         <div className={`flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors ${isMe ? 'bg-brand-green/5 border border-brand-green/20' : 'hover:bg-gray-50'}`}>
             <PlayerAvatar src={reg.users?.avatarUrl} name={name} position={reg.users?.mainPosition} size="sm" />
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-primary-text truncate">
+                <p className="text-sm font-semibold text-primary-text truncate flex items-center gap-1">
                     {name} {isMe && <span className="text-[10px] text-secondary-text font-normal">(você)</span>}
+                    {reg.subscriptionType === 'MENSALISTA' && (
+                        <span className="inline-flex items-center gap-0.5 text-[8px] bg-amber-500 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-tighter shrink-0">
+                            <Crown size={8} /> PRO
+                        </span>
+                    )}
                 </p>
                 <p className="text-[11px] text-secondary-text">{position}</p>
             </div>
@@ -232,7 +238,7 @@ function PlayerRow({
 /* ── CTA button (player only) ────────────────────────────────────── */
 
 function CTAButton({
-    matchId, matchTitle, myRegistration, confirmed, maxPlayers, session, pixKey, price, onAction,
+    matchId, matchTitle, myRegistration, confirmed, maxPlayers, session, pixKey, price, onAction, isMensalista,
 }: {
     matchId: string
     matchTitle: string
@@ -243,34 +249,42 @@ function CTAButton({
     pixKey: string | null
     price: number
     onAction: () => void
+    isMensalista: boolean
 }) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const isFull = confirmed >= maxPlayers
 
-    async function handleRegister(status: 'RESERVED' | 'WAITLIST') {
+    async function handleRegister() {
         setLoading(true)
         setError('')
-        const { error } = await supabase.from('match_registrations').insert({
-            matchId, userId: session.user.id, status,
+        const { error: rpcError } = await supabase.rpc('register_for_match', {
+            p_match_id: matchId,
         })
         setLoading(false)
-        if (error) {
-            // Se o erro for de duplicidade (23505), tratamos como sucesso (já está inscrito)
-            if ((error as any).code === '23505') {
+        if (rpcError) {
+            // Duplicata (já inscrito)
+            if (rpcError.message?.includes('já está inscrito')) {
                 onAction()
                 return
             }
-            logger.error('Erro ao inscrever jogador na partida', error)
-            setError(error.message); return
+            logger.error('Erro ao inscrever jogador na partida', rpcError)
+            setError(rpcError.message); return
         }
         onAction()
     }
 
     if (myRegistration?.status === 'CONFIRMED') {
         return (
-            <div className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green/10 text-brand-green font-semibold">
-                <ShieldCheck size={18} /> Presença confirmada!
+            <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green/10 text-brand-green font-semibold w-full">
+                    <ShieldCheck size={18} /> Presença confirmada!
+                </div>
+                {myRegistration.subscriptionType === 'MENSALISTA' && (
+                    <p className="text-[11px] text-amber-600 font-medium flex items-center gap-1">
+                        <Crown size={12} /> Mensalista — entrada garantida sem pagamento avulso
+                    </p>
+                )}
             </div>
         )
     }
@@ -308,9 +322,18 @@ function CTAButton({
     return (
         <div className="flex flex-col gap-2">
             {error && <p className="text-xs text-brand-red text-center animate-fade-in">{error}</p>}
-            {isFull ? (
+            {isMensalista ? (
                 <button
-                    onClick={() => handleRegister('WAITLIST')}
+                    onClick={handleRegister}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold text-base hover:brightness-105 active:scale-[0.97] transition-all duration-150 shadow-sm shadow-amber-500/20 disabled:opacity-50"
+                >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Crown size={18} />}
+                    {loading ? 'Entrando…' : 'Tô Dentro! (PRO)'}
+                </button>
+            ) : isFull ? (
+                <button
+                    onClick={handleRegister}
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gray-100 text-secondary-text font-semibold text-sm hover:bg-gray-200 active:scale-[0.97] transition-all duration-150 disabled:opacity-50"
                 >
@@ -319,7 +342,7 @@ function CTAButton({
                 </button>
             ) : (
                 <button
-                    onClick={() => handleRegister('RESERVED')}
+                    onClick={handleRegister}
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-green text-white font-semibold text-base hover:brightness-105 active:scale-[0.97] transition-all duration-150 shadow-sm shadow-brand-green/20 disabled:opacity-50"
                 >
@@ -362,6 +385,7 @@ export default function MatchDetail({ matchId, session, onBack }: Props) {
     const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
     const [isMvpCardOpen, setIsMvpCardOpen] = useState(false)
     const [isStatusShareOpen, setIsStatusShareOpen] = useState(false)
+    const [isInviteShareOpen, setIsInviteShareOpen] = useState(false)
     const [noEvaluationsMsg, setNoEvaluationsMsg] = useState(false)
     const { hasEvaluated: hasAlreadyEvaluated, fetchMyEvaluations } = useMatchEvaluations(matchId, session.user.id)
     const { mvps, loading: mvpLoading, computeMvps, isComputing, evaluatorCount } = useMatchMvp(matchId, data?.status)
@@ -675,6 +699,17 @@ export default function MatchDetail({ matchId, session, onBack }: Props) {
                         </button>
                     )}
 
+                    {/* Todos: Convidar Amigos */}
+                    {data.status === 'OPEN' && (
+                        <button
+                            onClick={() => setIsInviteShareOpen(true)}
+                            className="w-full py-3 rounded-2xl border border-brand-green/20 text-brand-green font-semibold text-sm flex items-center justify-center gap-2 hover:bg-brand-green/5 hover:border-brand-green/30 active:scale-[0.98] transition-all"
+                        >
+                            <Link2 size={16} />
+                            Convidar Amigo
+                        </button>
+                    )}
+
                     {/* Admin: pending confirmations */}
                     {isAdmin && pendingReserved.length > 0 && (
                         <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 flex flex-col gap-2">
@@ -705,6 +740,7 @@ export default function MatchDetail({ matchId, session, onBack }: Props) {
                             pixKey={adminPixKey}
                             price={data.price}
                             onAction={refetch}
+                            isMensalista={userGroups.some(g => g.groupId === data.groupId && g.subscriptionType === 'MENSALISTA')}
                         />
                     )}
 
@@ -924,6 +960,15 @@ export default function MatchDetail({ matchId, session, onBack }: Props) {
                         })),
                     }}
                     onClose={() => setIsStatusShareOpen(false)}
+                />
+            )}
+
+            {isInviteShareOpen && data?.group && (
+                <GroupInviteShare
+                    groupName={data.group.name}
+                    inviteToken={data.group.inviteToken}
+                    inviteExpiresAt={data.group.inviteExpiresAt}
+                    onClose={() => setIsInviteShareOpen(false)}
                 />
             )}
         </div>

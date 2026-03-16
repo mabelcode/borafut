@@ -54,7 +54,7 @@ describe('Home Component', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         window.history.replaceState({}, '', '/')
-        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: false })
+        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: false, groups: [] })
         mockUseMyRegistrations.mockReturnValue({ data: {} })
         mockUseMyEvaluatedMatches.mockReturnValue({ evaluatedMatchIds: new Set<string>() })
     })
@@ -304,7 +304,7 @@ describe('Home Component', () => {
     /* ── Admin features ── */
 
     it('shows Admin badge and settings button for admin users', () => {
-        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: true })
+        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: true, groups: [] })
         mockUseMatches.mockReturnValue({ matches: [], loading: false, error: null })
         render(<Home {...defaultProps} />)
 
@@ -314,7 +314,7 @@ describe('Home Component', () => {
     })
 
     it('hides Admin badge and FAB for non-admin users', () => {
-        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: false })
+        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: false, groups: [] })
         mockUseMatches.mockReturnValue({ matches: [], loading: false, error: null })
         render(<Home {...defaultProps} />)
 
@@ -323,7 +323,7 @@ describe('Home Component', () => {
     })
 
     it('calls onSettings when settings button is clicked', () => {
-        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: true })
+        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: true, groups: [] })
         mockUseMatches.mockReturnValue({ matches: [], loading: false, error: null })
         render(<Home {...defaultProps} />)
 
@@ -333,7 +333,7 @@ describe('Home Component', () => {
     })
 
     it('calls onCreateMatch when FAB is clicked', () => {
-        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: true })
+        mockUseCurrentUser.mockReturnValue({ isAdminInAnyGroup: true, groups: [] })
         mockUseMatches.mockReturnValue({ matches: [], loading: false, error: null })
         render(<Home {...defaultProps} />)
 

@@ -57,7 +57,21 @@ users.isSuperAdmin boolean DEFAULT false
 group_members.role = 'ADMIN' | 'PLAYER'
   └── escopo do grupo — promovido a ADMIN via Painel Super Admin ou SQL manual
   └── PLAYER é o padrão ao entrar por link de convite
+
+group_members.subscriptionType = 'MENSALISTA' | 'AVULSO'
+  └── define o tipo de assinatura do membro no grupo
+  └── AVULSO é o padrão — paga por partida
+  └── MENSALISTA — assinante mensal, prioridade na inscrição
+  └── alterado pelo Admin via botão "TORNAR PRO" no painel de membros
 ```
+
+### Regras de Prioridade do Mensalista
+
+Na inscrição para uma partida:
+- **Com vagas:** Avulso → `RESERVED` (aguarda pagamento), Mensalista → `CONFIRMED` (direto)
+- **Sem vagas + Avulso em `RESERVED`:** Mensalista entra como `CONFIRMED`, último Avulso `RESERVED` vai para `WAITLIST`
+- **Sem vagas + todos `CONFIRMED`:** Mensalista vai para `WAITLIST`
+- Mensalista **nunca** desloca outro Mensalista
 
 ---
 

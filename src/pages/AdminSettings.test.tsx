@@ -14,7 +14,7 @@ vi.mock('@/lib/supabase', () => ({
 describe('AdminSettings Component', () => {
     const mockOnBack = vi.fn();
     const mockSession = { user: { id: 'user-1' } } as any;
-    const mockGroups = [{ groupId: 'group-1', groupName: 'Bolha Teste', inviteToken: 'token-123', inviteExpiresAt: null, role: 'ADMIN' as const }];
+    const mockGroups = [{ groupId: 'group-1', groupName: 'Bolha Teste', inviteToken: 'token-123', inviteExpiresAt: null, role: 'ADMIN' as const, subscriptionType: 'AVULSO' as const }];
 
     beforeEach(() => {
         vi.clearAllMocks();

@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useMatches, type Match } from '@/hooks/useMatches'
 import { useMyRegistrations, type MyRegistrationsMap } from '@/hooks/useMyRegistrations'
 import { useMyEvaluatedMatches } from '@/hooks/useMyEvaluatedMatches'
+import GroupSelector from '@/components/GroupSelector'
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -76,7 +77,7 @@ function SectionHeader({ icon, title, count, accent }: {
 /* ── Match Card ──────────────────────────────────────────────────── */
 
 function MatchCard({
-    match, myStatus, hasEvaluated, variant, onSelect, onEvaluate
+    match, myStatus, hasEvaluated, variant, onSelect, onEvaluate, groupName, showGroupBadge
 }: {
     match: Match
     myStatus: MyRegistrationsMap[string] | undefined
@@ -84,6 +85,8 @@ function MatchCard({
     variant: 'upcoming' | 'past'
     onSelect: () => void
     onEvaluate?: () => void
+    groupName?: string
+    showGroupBadge?: boolean
 }) {
     const badge = STATUS_LABEL[match.status]
     const isUpcoming = variant === 'upcoming'
@@ -104,9 +107,16 @@ function MatchCard({
                 }`}
         >
             <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-primary-text leading-tight">
-                    {match.title || 'Partida sem título'}
-                </h3>
+                <div className="flex flex-col">
+                    <h3 className="font-semibold text-primary-text leading-tight">
+                        {match.title || 'Partida sem título'}
+                    </h3>
+                    {showGroupBadge && groupName && (
+                        <span className="text-[10px] font-semibold text-secondary-text mt-0.5 flex items-center gap-1">
+                            <span className="text-[8px]">⚽</span> {groupName}
+                        </span>
+                    )}
+                </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {isUpcoming && (
                         <span className="text-[11px] font-semibold text-brand-green">
@@ -219,11 +229,20 @@ interface Props {
 }
 
 export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props) {
-    const { isAdminInAnyGroup } = useCurrentUser()
-    const { matches, loading, error } = useMatches()
+    const { isAdminInAnyGroup, groups } = useCurrentUser()
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+    const { matches, loading, error } = useMatches(selectedGroupId ?? undefined)
     const { data: myRegistrations } = useMyRegistrations()
     const { evaluatedMatchIds } = useMyEvaluatedMatches()
     const [showAllPast, setShowAllPast] = useState(false)
+
+    // Build groupId → groupName lookup
+    const groupNameMap = useMemo(() => {
+        const map: Record<string, string> = {}
+        for (const g of groups) map[g.groupId] = g.groupName
+        return map
+    }, [groups])
+    const showGroupBadge = groups.length > 1
 
     const { upcomingMatches, pastMatches } = useMemo(() => {
         const upcoming: Match[] = []
@@ -279,6 +298,16 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
                     )}
                 </div>
 
+                {/* Group Selector */}
+                {groups.length > 0 && (
+                    <GroupSelector
+                        groups={groups}
+                        selectedGroupId={selectedGroupId}
+                        onChange={setSelectedGroupId}
+                        showAllOption={true}
+                    />
+                )}
+
                 {/* Match list */}
                 {loading ? (
                     <div className="flex justify-center py-12">
@@ -308,6 +337,8 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
                                         variant="upcoming"
                                         onSelect={() => onSelectMatch(match.id)}
                                         onEvaluate={() => handleEvaluate(match.id)}
+                                        groupName={groupNameMap[match.groupId]}
+                                        showGroupBadge={showGroupBadge}
                                     />
                                 ))}
                             </div>
@@ -331,6 +362,8 @@ export default function Home({ onCreateMatch, onSelectMatch, onSettings }: Props
                                         variant="past"
                                         onSelect={() => onSelectMatch(match.id)}
                                         onEvaluate={() => handleEvaluate(match.id)}
+                                        groupName={groupNameMap[match.groupId]}
+                                        showGroupBadge={showGroupBadge}
                                     />
                                 ))}
 

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Users, Shield, User, Loader2, Star, Calendar, Share2, Check, UserPlus, Search, X } from 'lucide-react'
+import { ArrowLeft, Users, Shield, User, Loader2, Star, Calendar, Share2, Check, UserPlus, Search, X, Crown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -23,6 +23,7 @@ interface GroupDetail {
 interface GroupMember {
     id: string
     role: 'ADMIN' | 'PLAYER'
+    subscriptionType: 'MENSALISTA' | 'AVULSO' | null
     joinedAt: string
     user?: {
         id: string
@@ -72,7 +73,7 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
             const [groupRes, membersRes] = await Promise.all([
                 supabase.from('groups').select('*').eq('id', groupId).single(),
                 supabase.from('group_members').select(`
-                    id, role, joinedAt,
+                    id, role, subscriptionType, joinedAt,
                     user:users(id, displayName, mainPosition, globalScore, isSuperAdmin, avatarUrl)
                 `).eq('groupId', groupId)
             ])
@@ -193,6 +194,27 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
 
     async function handleToggleRole(memberId: string, currentRole: 'ADMIN' | 'PLAYER', userId: string) {
         toggleRoleMutation.mutate({ memberId, currentRole, userId })
+    }
+
+    const toggleSubscriptionMutation = useMutation({
+        mutationFn: async ({ memberId, currentType }: { memberId: string, currentType: string }) => {
+            const newType = currentType === 'MENSALISTA' ? 'AVULSO' : 'MENSALISTA'
+            const { error: rpcError } = await supabase.rpc('update_member_subscription', {
+                p_member_id: memberId,
+                p_subscription_type: newType,
+            })
+            if (rpcError) throw rpcError
+            return { memberId, newType }
+        },
+        onSuccess: ({ newType }) => {
+            logger.info(`Assinatura do membro alterada para ${newType}`)
+            queryClient.invalidateQueries({ queryKey: ['adminGroupDetails', groupId] })
+        },
+        onError: (err) => logger.error('Erro ao alterar assinatura do membro', err),
+    })
+
+    function handleToggleSubscription(memberId: string, currentType: string) {
+        toggleSubscriptionMutation.mutate({ memberId, currentType })
     }
 
     const sortedMembers = useMemo(() => {
@@ -413,6 +435,11 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                                                         Admin
                                                     </span>
                                                 ) : null}
+                                                {(member.subscriptionType ?? 'AVULSO') === 'MENSALISTA' && (
+                                                    <span className="text-[8px] bg-amber-500 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex items-center gap-0.5">
+                                                        <Crown size={8} /> PRO
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-2 mt-0.5">
                                                 <span className="text-[10px] text-secondary-text font-medium flex items-center gap-1">
@@ -453,6 +480,31 @@ export default function GroupDetailsView({ groupId, onBack }: GroupDetailsViewPr
                                                     <>
                                                         <Shield size={10} />
                                                         TORNAR ADMIN
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+
+                                        {!memberUser?.isSuperAdmin && (
+                                            <button
+                                                onClick={() => handleToggleSubscription(member.id, member.subscriptionType ?? 'AVULSO')}
+                                                disabled={toggleSubscriptionMutation.isPending && toggleSubscriptionMutation.variables?.memberId === member.id}
+                                                className={`text-[9px] font-bold px-2 py-1.5 rounded-lg border transition-all active:scale-95 flex items-center gap-1.5 ${(member.subscriptionType ?? 'AVULSO') === 'MENSALISTA'
+                                                    ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
+                                                    : 'bg-gray-50 text-secondary-text border-gray-100 hover:bg-gray-100'
+                                                    }`}
+                                            >
+                                                {(toggleSubscriptionMutation.isPending && toggleSubscriptionMutation.variables?.memberId === member.id) ? (
+                                                    <Loader2 size={10} className="animate-spin" />
+                                                ) : (member.subscriptionType ?? 'AVULSO') === 'MENSALISTA' ? (
+                                                    <>
+                                                        <Crown size={10} />
+                                                        REMOVER PRO
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Crown size={10} />
+                                                        TORNAR PRO
                                                     </>
                                                 )}
                                             </button>

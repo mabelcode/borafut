@@ -10,7 +10,12 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage && node scripts/fix-clover-paths.js"
+    "test:coverage": "vitest run --coverage && node scripts/fix-clover-paths.js",
+    "preinstall": "npx only-allow pnpm"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
   },
   "dependencies": {
     "@sentry/react": "^10.39.0",

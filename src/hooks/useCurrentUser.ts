@@ -21,6 +21,7 @@ export interface GroupMembership {
     groupId: string
     groupName: string
     role: 'ADMIN' | 'PLAYER'
+    subscriptionType: 'MENSALISTA' | 'AVULSO'
     inviteToken: string
     inviteExpiresAt: string | null
 }
@@ -40,36 +41,53 @@ export function useCurrentUser() {
             const { data: { user: authUser } } = await supabase.auth.getUser()
             if (!authUser) return { user: null, groups: [], authUser: null }
 
-            const [profileRes, membershipsRes] = await Promise.all([
-                supabase.from('users').select('*').eq('id', authUser.id).maybeSingle(),
-                supabase
-                    .from('group_members')
-                    .select('role, groupId, groups(id, name, inviteToken, inviteExpiresAt)')
-                    .eq('userId', authUser.id),
-            ])
-
+            const profileRes = await supabase.from('users').select('*').eq('id', authUser.id).maybeSingle()
             if (profileRes.error) throw profileRes.error
-            if (membershipsRes.error) throw membershipsRes.error
+            const userProfile = profileRes.data as UserProfile | null
 
-            const rawMemberships = (membershipsRes.data ?? []) as unknown as {
-                role: 'ADMIN' | 'PLAYER'
-                groups: {
-                    id: string
-                    name: string
-                    inviteToken: string
-                    inviteExpiresAt: string | null
-                } | null
-            }[]
+            let memberships: GroupMembership[] = []
 
-            const memberships: GroupMembership[] = rawMemberships
-                .filter(m => m.groups !== null)
-                .map(m => ({
-                    groupId: m.groups!.id,
-                    groupName: m.groups!.name,
-                    role: m.role,
-                    inviteToken: m.groups!.inviteToken,
-                    inviteExpiresAt: m.groups!.inviteExpiresAt,
+            if (userProfile?.isSuperAdmin) {
+                const groupsRes = await supabase.from('groups').select('id, name, inviteToken, inviteExpiresAt')
+                if (groupsRes.error) throw groupsRes.error
+                memberships = (groupsRes.data || []).map(g => ({
+                    groupId: g.id,
+                    groupName: g.name,
+                    role: 'ADMIN',
+                    subscriptionType: 'AVULSO',
+                    inviteToken: g.inviteToken,
+                    inviteExpiresAt: g.inviteExpiresAt,
                 }))
+            } else {
+                const membershipsRes = await supabase
+                    .from('group_members')
+                    .select('role, subscriptionType, groups(id, name, inviteToken, inviteExpiresAt)')
+                    .eq('userId', authUser.id)
+
+                if (membershipsRes.error) throw membershipsRes.error
+
+                const rawMemberships = (membershipsRes.data ?? []) as unknown as {
+                    role: 'ADMIN' | 'PLAYER'
+                    subscriptionType: 'MENSALISTA' | 'AVULSO' | null
+                    groups: {
+                        id: string
+                        name: string
+                        inviteToken: string
+                        inviteExpiresAt: string | null
+                    } | null
+                }[]
+
+                memberships = rawMemberships
+                    .filter(m => m.groups !== null)
+                    .map(m => ({
+                        groupId: m.groups!.id,
+                        groupName: m.groups!.name,
+                        role: m.role,
+                        subscriptionType: m.subscriptionType ?? 'AVULSO',
+                        inviteToken: m.groups!.inviteToken,
+                        inviteExpiresAt: m.groups!.inviteExpiresAt,
+                    }))
+            }
 
             return {
                 user: (profileRes.data ?? null) as UserProfile | null,

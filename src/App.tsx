@@ -211,7 +211,7 @@ export function AppInner({
   }
 
   // Admin's active group for CreateMatch + AdminSettings
-  const activeAdminGroupId = adminGroups[0]?.groupId ?? groups[0]?.groupId ?? ''
+  const activeAdminGroupId = adminGroups[0]?.groupId ?? groups[0]?.groupId ?? undefined
 
   return (
     <Layout
@@ -295,7 +295,7 @@ export function AppInner({
         />
       )}
 
-      {appState === 'create-match' && (
+      {appState === 'create-match' && activeAdminGroupId && (
         <CreateMatch
           session={session}
           groupId={activeAdminGroupId}
@@ -321,10 +321,23 @@ export function AppInner({
       )}
 
       {appState === 'group-admin' && isAdminInAnyGroup && (
-        <GroupAdmin
-          groupId={selectedGroupId || activeAdminGroupId}
-          onBack={() => setAppState('home')}
-        />
+        (selectedGroupId || activeAdminGroupId) ? (
+          <GroupAdmin
+            groupId={(selectedGroupId || activeAdminGroupId)!}
+            adminGroups={adminGroups}
+            onBack={() => setAppState('home')}
+          />
+        ) : user?.isSuperAdmin ? (
+          <SuperAdmin
+            onSelectGroup={(id) => {
+              setSelectedGroupId(id)
+            }}
+            onSelectUser={(id) => {
+              setSelectedUserId(id)
+              setAppState('super-admin-user')
+            }}
+          />
+        ) : null
       )}
 
       {appState === 'user-profile' && (

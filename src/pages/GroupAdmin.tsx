@@ -5,15 +5,19 @@ import GroupMatchesTab from './admin/GroupMatchesTab'
 import GroupFinanceTab from './admin/GroupFinanceTab'
 import GroupDetailsView from './admin/GroupDetailsView'
 import GroupSettingsTab from './admin/GroupSettingsTab'
+import GroupSelector from '@/components/GroupSelector'
+import type { GroupMembership } from '@/hooks/useCurrentUser'
 
 type Tab = 'matches' | 'finance' | 'members' | 'settings'
 
 interface Props {
     groupId: string
+    adminGroups: GroupMembership[]
     onBack: () => void
 }
 
-export default function GroupAdmin({ groupId, onBack }: Props) {
+export default function GroupAdmin({ groupId, adminGroups, onBack }: Props) {
+    const [activeGroupId, setActiveGroupId] = useState(groupId)
     const [activeTab, setActiveTab] = useState<Tab>(() => {
         const params = new URLSearchParams(window.location.search)
         const tab = params.get('tab') as Tab
@@ -35,6 +39,18 @@ export default function GroupAdmin({ groupId, onBack }: Props) {
 
     return (
         <div className="flex flex-col animate-fade-in">
+            {/* Group Selector (always show to identify context) */}
+            {adminGroups.length > 0 && (
+                <div className="px-4 pt-3 pb-1 bg-surface border-b border-gray-100">
+                    <GroupSelector
+                        groups={adminGroups}
+                        selectedGroupId={activeGroupId}
+                        onChange={(id) => { if (id) setActiveGroupId(id) }}
+                        showAllOption={false}
+                    />
+                </div>
+            )}
+
             {/* Tab Bar */}
             <div className="flex border-b border-gray-100 bg-surface">
                 {tabs.map((tab) => {
@@ -62,16 +78,16 @@ export default function GroupAdmin({ groupId, onBack }: Props) {
 
             {/* Content */}
             <main className="flex-1 overflow-y-auto">
-                {activeTab === 'matches' && <GroupMatchesTab groupId={groupId} />}
-                {activeTab === 'finance' && <GroupFinanceTab groupId={groupId} />}
+                {activeTab === 'matches' && <GroupMatchesTab groupId={activeGroupId} />}
+                {activeTab === 'finance' && <GroupFinanceTab groupId={activeGroupId} />}
                 {activeTab === 'members' && (
                     <GroupDetailsView
-                        groupId={groupId}
+                        groupId={activeGroupId}
                         onBack={onBack}
                         currentUserRole="ADMIN"
                     />
                 )}
-                {activeTab === 'settings' && <GroupSettingsTab groupId={groupId} />}
+                {activeTab === 'settings' && <GroupSettingsTab groupId={activeGroupId} />}
             </main>
         </div>
     )

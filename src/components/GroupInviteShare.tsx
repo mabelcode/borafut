@@ -43,7 +43,7 @@ export default function GroupInviteShare({ groupName, inviteToken, inviteExpires
     }, [stableOnClose])
 
     const inviteUrl = `${window.location.origin}?token=${inviteToken}`
-    const isExpired = inviteExpiresAt && new Date(inviteExpiresAt) < new Date()
+    const isExpired = !!(inviteExpiresAt && new Date(inviteExpiresAt) < new Date())
 
     async function handleCopy() {
         try {
